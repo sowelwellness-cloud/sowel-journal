@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F5EFE6">
+<meta name="robots" content="noindex,nofollow">
+<title>나의 수업일지 · SOWEL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+  :root{
+    --brown:#2C2620; --terra:#E8601A; --cream:#F5EFE6; --card:#FFFDF9;
+    --line:#E6DCCD; --muted:#7D7166; --soft:#EFE6D8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--cream);color:var(--brown);font-family:'Noto Sans KR',system-ui,-apple-system,sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.65}
+  .wrap{max-width:560px;margin:0 auto;padding:28px 16px 56px}
+  .brand{text-align:center}
+  .mark{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:30px;letter-spacing:.32em;padding-left:.32em;line-height:1}
+  .center{font-size:12px;color:var(--muted);letter-spacing:.08em;margin-top:6px}
+  .hero{margin-top:28px;padding:22px 20px;border-radius:20px;background:var(--brown);color:var(--cream)}
+  .eyebrow{font-family:'Cormorant Garamond',serif;font-size:14px;letter-spacing:.24em;color:#E9B48F;margin:0}
+  .hero h1{font-size:22px;margin:6px 0 0;font-weight:700;letter-spacing:-.3px}
+  .stats{display:flex;gap:18px;margin-top:16px}
+  .stat b{display:block;font-size:22px;font-weight:700;color:#fff;line-height:1.2}
+  .stat span{font-size:12px;color:#CBBFB0}
+  .state{white-space:pre-line;text-align:center;color:var(--muted);font-size:14px;padding:48px 8px}
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--terra);
+        border-radius:50%;animation:sp .8s linear infinite;vertical-align:-3px;margin-right:8px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .sec{font-size:13px;font-weight:700;color:var(--muted);margin:28px 4px 10px;letter-spacing:.02em}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-top:10px;overflow:hidden}
+  .card.latest{border-color:var(--terra);box-shadow:0 6px 20px rgba(44,38,32,.06)}
+  .head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px}
+  .date{font-weight:700;font-size:16px}
+  .new{font-size:11px;font-weight:700;color:#fff;background:var(--terra);border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:2px}
+  .chip{font-size:12px;color:var(--muted);background:var(--soft);border-radius:99px;padding:3px 10px;white-space:nowrap}
+  .body{padding:0 16px 16px;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;font-size:15px}
+  .latest .body{border-top:1px solid var(--soft);padding-top:14px}
+  details.card>summary{list-style:none;cursor:pointer}
+  details.card>summary::-webkit-details-marker{display:none}
+  details.card .head{padding-bottom:4px}
+  .preview{padding:0 16px 14px;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  details[open] .preview{display:none}
+  details[open] .body{border-top:1px solid var(--soft);padding-top:14px}
+  .tip{text-align:center;font-size:12px;color:var(--muted);margin-top:32px}
+  .foot{text-align:center;font-family:'Cormorant Garamond',serif;letter-spacing:.2em;font-size:13px;color:var(--muted);margin-top:10px}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="brand">
+    <div class="mark">SOWEL</div>
+    <div class="center" id="center">WELLNESS PT</div>
+  </div>
+
+  <section class="hero hidden" id="hero">
+    <p class="eyebrow">MY SESSION LOG</p>
+    <h1 id="title">나의 수업일지</h1>
+    <div class="stats">
+      <div class="stat"><b id="count">0</b><span>기록된 수업</span></div>
+      <div class="stat"><b id="since">-</b><span>첫 기록</span></div>
+    </div>
+  </section>
+
+  <div class="state" id="state"><span class="spin"></span>수업일지를 불러오는 중이에요…</div>
+  <div id="list"></div>
+
+  <p class="tip hidden" id="tip">이 페이지를 홈 화면에 추가해 두면 앱처럼 바로 열 수 있어요.</p>
+  <div class="foot">SOWEL WELLNESS</div>
+</main>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+  function parseDate(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || '');
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+  function label(s) {
+    var d = parseDate(s);
+    return d ? (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + DAYS[d.getDay()] + ')' : (s || '');
+  }
+  function shortDate(s) {
+    var d = parseDate(s);
+    return d ? String(d.getFullYear()).slice(2) + '.' + (d.getMonth() + 1) + '.' + d.getDate() : '-';
+  }
+  /** 저장된 일지 첫 줄(📋 오늘의 수업일지 · 날짜)은 카드 머리에 있으니 뺌 */
+  function bodyText(t) {
+    var lines = String(t || '').split('\n');
+    if (lines[0] && lines[0].indexOf('📋') === 0) lines.shift();
+    while (lines.length && !lines[0].trim()) lines.shift();
+    return lines.join('\n');
+  }
+  function preview(t) {
+    var lines = bodyText(t).split('\n');
+    var ex = lines.filter(function (l) { return /^- /.test(l); }).map(function (l) { return l.slice(2).split(/\s\d/)[0]; });
+    if (ex.length) return ex.slice(0, 4).join(' · ') + (ex.length > 4 ? ' 외 ' + (ex.length - 4) + '개' : '');
+    for (var i = 0; i < lines.length; i++) if (lines[i].trim() && !/^[💪👍🏠➡📝🌿]/u.test(lines[i])) return lines[i];
+    return '';
+  }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function head(log, isNew) {
+    var h = el('div', 'head');
+    var d = el('div', 'date', label(log.date));
+    if (isNew) d.appendChild(el('span', 'new', 'NEW'));
+    h.appendChild(d);
+    if (log.trainer) h.appendChild(el('span', 'chip', '담당 ' + log.trainer));
+    return h;
+  }
+  function fail(msg) {
+    $('state').textContent = msg;
+  }
+
+  var code = (new URLSearchParams(location.search).get('c') || '').trim().toLowerCase();
+  var API = window.SOWEL_API;
+  if (!code) return fail('링크가 올바르지 않아요. 센터에서 받은 링크로 다시 열어 주세요.');
+  if (!API || !/^https:\/\//.test(API)) return fail('아직 준비 중인 페이지예요. 센터에 문의해 주세요.');
+
+  fetch(API + '?action=member&c=' + encodeURIComponent(code))
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j.ok) return fail(j.error || '수업일지를 불러오지 못했어요.');
+      document.title = j.name + '님의 수업일지 · SOWEL';
+      if (j.center) $('center').textContent = j.center;
+      $('title').textContent = j.name + '님의 수업일지';
+      $('count').textContent = j.count;
+      var logs = j.logs || [];
+      $('since').textContent = logs.length ? shortDate(logs[logs.length - 1].date) : '-';
+      $('hero').classList.remove('hidden');
+      $('tip').classList.remove('hidden');
+
+      if (!logs.length) return fail('아직 기록된 수업일지가 없어요.\n첫 수업 후에 이곳에 쌓여요 🌿');
+      $('state').classList.add('hidden');
+
+      var list = $('list');
+      var weekAgo = Date.now() - 3 * 86400000;
+      var first = logs[0];
+      list.appendChild(el('div', 'sec', '가장 최근 수업'));
+      var c = el('article', 'card latest');
+      var fd = parseDate(first.date);
+      c.appendChild(head(first, fd && fd.getTime() >= weekAgo));
+      c.appendChild(el('div', 'body', bodyText(first.text)));
+      list.appendChild(c);
+
+      if (logs.length > 1) {
+        list.appendChild(el('div', 'sec', '지난 수업 (' + (logs.length - 1) + ')'));
+        logs.slice(1).forEach(function (log) {
+          var d = el('details', 'card');
+          var s = el('summary');
+          s.appendChild(head(log, false));
+          var pv = preview(log.text);
+          if (pv) s.appendChild(el('div', 'preview', pv));
+          d.appendChild(s);
+          d.appendChild(el('div', 'body', bodyText(log.text)));
+          list.appendChild(d);
+        });
+      }
+    })
+    .catch(function () { fail('인터넷 연결을 확인하고 다시 열어 주세요.'); });
+})();
+</script>
+</body>
+</html>
