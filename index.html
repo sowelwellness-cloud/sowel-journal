@@ -105,6 +105,7 @@
       <div class="hint" id="hint">예) "데드리프트 삼십키로 열다섯개 삼세트, 왼쪽 골반이 안정됨, 숙제는 오픈북 열개 삼세트 매일"</div>
     </div>
     <div class="status" id="status"></div>
+    <div class="row hidden" id="retryRow"><button class="btn" id="retryBtn">같은 녹음으로 다시 시도</button></div>
 
     <details style="margin-top:10px">
       <summary style="font-size:14px">⌨️ 말 대신 글로 테스트</summary>
@@ -352,7 +353,7 @@ var SJ = (function () {
     el.style.whiteSpace = 'pre-line';
   }
   function setBusy(b) {
-    $('recBtn').disabled = b; $('textBtn').disabled = b; $('redoBtn').disabled = b;
+    $('recBtn').disabled = b; $('textBtn').disabled = b; $('redoBtn').disabled = b; $('retryBtn').disabled = b;
   }
 
   // ── 녹음 ──
@@ -461,35 +462,66 @@ var SJ = (function () {
   $('textBtn').onclick = function () { organizeText($('textIn').value); };
   $('redoBtn').onclick = function () { organizeText($('transcript').value); };
 
-  // ── AI 호출 ──
-  var lastData = null, debugInfo = '';
+  // ── AI 호출 (자동 재시도 + 예비 모델) ──
+  var lastData = null, debugInfo = '', lastParts = null;
+  var FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  async function callModel(model, parts) {
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
+    var r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg('key') },
+      body: JSON.stringify(SJ.buildRequest(parts))
+    });
+    var body = await r.json().catch(function () { return {}; });
+    return { ok: r.ok, status: r.status, body: body };
+  }
+
   async function organize(parts) {
+    lastParts = parts;
+    $('retryRow').classList.add('hidden');
     setStatus('일지로 정리하는 중…', '', true);
     var t = Date.now();
+    var main = cfg('model');
+    var models = [main].concat(FALLBACK_MODELS.filter(function (m) { return m !== main; }));
+    var lastErr = '';
     try {
-      var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(cfg('model')) + ':generateContent';
-      var r = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg('key') },
-        body: JSON.stringify(SJ.buildRequest(parts))
-      });
-      var body = await r.json().catch(function () { return {}; });
-      if (!r.ok) throw new Error(SJ.friendlyError(r.status, body));
-      var data = SJ.parseResponse(body);
-      lastData = data;
-      showResult(data);
-      $('debug').textContent = debugInfo + ' · 정리 ' + ((Date.now() - t) / 1000).toFixed(1) + '초 · 모델 ' + cfg('model');
-      setStatus('정리됐어요. 확인하고 공유해 주세요.', 'ok');
+      for (var mi = 0; mi < models.length; mi++) {
+        for (var attempt = 0; attempt < 3; attempt++) {
+          if (mi > 0 || attempt > 0) setStatus('AI가 바빠서 다시 시도하는 중… (' + (mi * 3 + attempt + 1) + '번째)', '', true);
+          var res = await callModel(models[mi], parts);
+          if (res.ok) {
+            var data = SJ.parseResponse(res.body);
+            lastData = data;
+            showResult(data);
+            $('debug').textContent = debugInfo + ' · 정리 ' + ((Date.now() - t) / 1000).toFixed(1) + '초 · 모델 ' + models[mi];
+            setStatus('정리됐어요. 회원을 고르고 저장해 주세요.', 'ok');
+            return;
+          }
+          lastErr = SJ.friendlyError(res.status, res.body);
+          var busy = res.status === 429 || res.status >= 500;
+          if (busy && attempt < 2) { await wait(2500 * (attempt + 1)); continue; }
+          if (busy || res.status === 404) break;   // 다음 예비 모델로
+          throw new Error(lastErr);                 // 키·권한 문제는 바로 알려줌
+        }
+      }
+      throw new Error(lastErr || 'AI가 응답하지 않아요.');
     } catch (e) {
       var m = e && e.message || String(e);
       if (/Failed to fetch|NetworkError|Load failed/i.test(m)) m = '인터넷 연결을 확인해 주세요. (' + m + ')';
-      setStatus(m, 'err');
+      setStatus(m + '\n녹음은 남아 있어요. 잠시 후 아래 버튼을 눌러 주세요.', 'err');
+      $('retryRow').classList.remove('hidden');
       $('debug').textContent = debugInfo;
-      $('transBox').classList.remove('hidden');
     } finally {
       setBusy(false);
     }
   }
+  $('retryBtn').onclick = function () {
+    if (!lastParts) return;
+    setBusy(true);
+    organize(lastParts);
+  };
 
   function showResult(data) {
     $('result').value = SJ.render(data, { trainer: cfg('trainer'), center: cfg('center'), closing: cfg('closing') }, pickedDate());
