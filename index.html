@@ -262,11 +262,20 @@ var SJ = (function () {
     return btoa(bin);
   }
 
-  function buildRequest(parts) {
+  /** 생각 단계를 최소로: 2.5 계열은 thinkingBudget, 그 이후 모델은 thinkingLevel */
+  function thinkingFor(model) {
+    if (/^gemini-2\.5/.test(model)) return /lite/.test(model) ? null : { thinkingBudget: 0 };
+    return { thinkingLevel: 'low' };
+  }
+
+  function buildRequest(parts, model, noThink) {
+    var gc = { temperature: 0.2, responseMimeType: 'application/json', responseSchema: SCHEMA };
+    var th = !noThink && model ? thinkingFor(model) : null;
+    if (th) gc.thinkingConfig = th;
     return {
       systemInstruction: { parts: [{ text: SYSTEM }] },
       contents: [{ role: 'user', parts: parts }],
-      generationConfig: { temperature: 0.2, responseMimeType: 'application/json', responseSchema: SCHEMA }
+      generationConfig: gc
     };
   }
 
@@ -407,6 +416,13 @@ var SJ = (function () {
     $('recLabel').textContent = '녹음 시작';
   }
 
+  function withTimeout(p, ms) {
+    return new Promise(function (res, rej) {
+      var t = setTimeout(function () { rej(new Error('timeout')); }, ms);
+      p.then(function (v) { clearTimeout(t); res(v); }, function (e) { clearTimeout(t); rej(e); });
+    });
+  }
+
   async function blobToWavB64(blob) {
     var buf = await blob.arrayBuffer();
     var AC = window.AudioContext || window.webkitAudioContext;
@@ -435,14 +451,20 @@ var SJ = (function () {
     var blob = new Blob(chunks, { type: rec.mimeType || recMime || 'audio/webm' });
     setBusy(true);
     setStatus('음성 파일 준비 중…', '', true);
-    var audio;
-    try { audio = await blobToWavB64(blob); }
-    catch (e) { setBusy(false); setStatus('녹음 파일을 처리하지 못했어요.\n(' + (e && e.message || e) + ')', 'err'); return; }
-    debugInfo = '녹음 형식: ' + (rec.mimeType || recMime || '기본') + ' · 길이 ' + audio.sec.toFixed(1) + '초 · 원본 ' +
-                Math.round(blob.size / 1024) + 'KB';
+    var audio, mime = 'audio/wav', tPrep = Date.now(), how = '변환';
+    try { audio = await withTimeout(blobToWavB64(blob), 15000); }
+    catch (e) {
+      try {
+        audio = { b64: SJ.bytesToB64(new Uint8Array(await blob.arrayBuffer())), sec: secs };
+        mime = (blob.type || recMime || 'audio/webm').split(';')[0];
+        how = '원본';
+      } catch (e2) { setBusy(false); setStatus('녹음 파일을 처리하지 못했어요.\n(' + (e2 && e2.message || e2) + ')', 'err'); return; }
+    }
+    debugInfo = '녹음 ' + (rec.mimeType || recMime || '기본') + ' · ' + audio.sec.toFixed(1) + '초 · ' + how + ' ' + mime + ' ' +
+                Math.round(audio.b64.length * 0.75 / 1024) + 'KB · 준비 ' + ((Date.now() - tPrep) / 1000).toFixed(1) + '초';
     organize([
       { text: '아래는 트레이너의 음성 메모입니다. 규칙대로 정리하세요.' },
-      { inlineData: { mimeType: 'audio/wav', data: audio.b64 } }
+      { inlineData: { mimeType: mime, data: audio.b64 } }
     ]);
   }
 
@@ -467,31 +489,54 @@ var SJ = (function () {
   var FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
+  var CALL_TIMEOUT = 40000, TOTAL_LIMIT = 100000;
+  var noThink = {};   // 생각 설정을 거부한 모델은 기억해 두고 빼고 보냄
   async function callModel(model, parts) {
     var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
-    var r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg('key') },
-      body: JSON.stringify(SJ.buildRequest(parts))
-    });
-    var body = await r.json().catch(function () { return {}; });
-    return { ok: r.ok, status: r.status, body: body };
+    async function go() {
+      var ctl = window.AbortController ? new AbortController() : null;
+      var timer = setTimeout(function () { if (ctl) ctl.abort(); }, CALL_TIMEOUT);
+      try {
+        var r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg('key') },
+          body: JSON.stringify(SJ.buildRequest(parts, model, noThink[model])),
+          signal: ctl ? ctl.signal : undefined
+        });
+        var body = await r.json().catch(function () { return {}; });
+        return { ok: r.ok, status: r.status, body: body };
+      } catch (e) {
+        if (e && e.name === 'AbortError') return { ok: false, status: 504, body: { error: { message: '응답 시간 초과 (' + model + ')' } } };
+        throw e;
+      } finally { clearTimeout(timer); }
+    }
+    var res = await go();
+    var msg = (res.body && res.body.error && res.body.error.message) || '';
+    if (!res.ok && res.status === 400 && !noThink[model] && /think/i.test(msg)) {
+      noThink[model] = true;
+      res = await go();
+    }
+    return res;
   }
 
   async function organize(parts) {
     lastParts = parts;
     $('retryRow').classList.add('hidden');
-    setStatus('일지로 정리하는 중…', '', true);
     var t = Date.now();
+    var phase = '일지로 정리하는 중…';
+    var ticker = setInterval(function () { setStatus(phase + ' ' + Math.round((Date.now() - t) / 1000) + '초', '', true); }, 1000);
+    setStatus(phase, '', true);
     var main = cfg('model');
     var models = [main].concat(FALLBACK_MODELS.filter(function (m) { return m !== main; }));
     var lastErr = '';
     try {
       for (var mi = 0; mi < models.length; mi++) {
-        for (var attempt = 0; attempt < 3; attempt++) {
-          if (mi > 0 || attempt > 0) setStatus('AI가 바빠서 다시 시도하는 중… (' + (mi * 3 + attempt + 1) + '번째)', '', true);
+        for (var attempt = 0; attempt < 2; attempt++) {
+          if (Date.now() - t > TOTAL_LIMIT) throw new Error('AI 응답이 너무 늦어요. 잠시 후 다시 시도해 주세요.');
+          if (mi > 0 || attempt > 0) phase = 'AI가 바빠서 다시 시도하는 중… (' + (mi * 2 + attempt + 1) + '번째 · ' + models[mi] + ')';
           var res = await callModel(models[mi], parts);
           if (res.ok) {
+            clearInterval(ticker);
             var data = SJ.parseResponse(res.body);
             lastData = data;
             showResult(data);
@@ -501,19 +546,21 @@ var SJ = (function () {
           }
           lastErr = SJ.friendlyError(res.status, res.body);
           var busy = res.status === 429 || res.status >= 500;
-          if (busy && attempt < 2) { await wait(2500 * (attempt + 1)); continue; }
+          if (busy && attempt < 1) { await wait(2000); continue; }
           if (busy || res.status === 404) break;   // 다음 예비 모델로
           throw new Error(lastErr);                 // 키·권한 문제는 바로 알려줌
         }
       }
       throw new Error(lastErr || 'AI가 응답하지 않아요.');
     } catch (e) {
+      clearInterval(ticker);
       var m = e && e.message || String(e);
       if (/Failed to fetch|NetworkError|Load failed/i.test(m)) m = '인터넷 연결을 확인해 주세요. (' + m + ')';
       setStatus(m + '\n녹음은 남아 있어요. 잠시 후 아래 버튼을 눌러 주세요.', 'err');
       $('retryRow').classList.remove('hidden');
-      $('debug').textContent = debugInfo;
+      $('debug').textContent = debugInfo + ' · 실패 ' + Math.round((Date.now() - t) / 1000) + '초';
     } finally {
+      clearInterval(ticker);
       setBusy(false);
     }
   }
