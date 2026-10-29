@@ -7,6 +7,7 @@
 <title>소웰 수업일지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="config.js"></script>
 <style>
   :root{
     --brown:#2C2620; --terra:#E8601A; --terra-d:#C94F12; --cream:#F5EFE6;
@@ -28,10 +29,17 @@
   details>summary::after{content:'▾';float:right;color:var(--muted)}
   details[open]>summary::after{content:'▴'}
   label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
-  input,textarea{width:100%;font:inherit;font-size:16px;color:var(--brown);background:#fff;
+  input,textarea,select{width:100%;font:inherit;font-size:16px;color:var(--brown);background:#fff;
                  border:1px solid var(--line);border-radius:10px;padding:10px 12px}
   textarea{min-height:120px;resize:vertical}
-  input:focus,textarea:focus{outline:2px solid var(--terra);outline-offset:-1px;border-color:transparent}
+  select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+          background-position:calc(100% - 18px) 50%,calc(100% - 12px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:32px}
+  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}
+  .grid2 label{margin-top:0}
+  .savebox{border-top:1px dashed var(--line);margin-top:16px;padding-top:14px}
+  .msg{font-size:13px;margin-top:8px;min-height:18px;white-space:pre-line}
+  .msg.ok{color:var(--ok)} .msg.err{color:var(--err)}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--terra);outline-offset:-1px;border-color:transparent}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-weight:500;font-size:15px;
        border:0;border-radius:10px;padding:11px 16px;cursor:pointer;background:var(--brown);color:#fff}
   .btn.ghost{background:transparent;color:var(--brown);border:1px solid var(--line)}
@@ -79,10 +87,11 @@
     <input id="sModel" type="text" autocomplete="off">
     <label for="sTrainer">담당 선생님 이름</label>
     <input id="sTrainer" type="text" placeholder="예: 권경준">
-    <label for="sCenter">센터명</label>
-    <input id="sCenter" type="text">
-    <label for="sClosing">마무리 문구</label>
-    <input id="sClosing" type="text">
+    <label for="sPin">센터 PIN</label>
+    <input id="sPin" type="password" inputmode="numeric" autocomplete="off" placeholder="시트 [설정] 탭에 적은 숫자">
+    <label for="sApi">시트 연결 주소 <span style="font-weight:400">(보통 비워두세요)</span></label>
+    <input id="sApi" type="url" autocomplete="off" placeholder="비워두면 기본 연결을 써요">
+    <p class="note">센터명과 마무리 문구는 시트의 [설정] 탭에서 바꿔요.</p>
     <div class="row"><button class="btn" id="saveBtn">저장</button></div>
   </details>
 
@@ -108,9 +117,24 @@
   <section class="card hidden" id="resultBox">
     <h2>✅ 정리된 수업일지</h2>
     <textarea id="result" aria-label="정리된 수업일지"></textarea>
-    <p class="note">보내기 전에 직접 고칠 수 있어요.</p>
+    <p class="note">저장하기 전에 직접 고칠 수 있어요.</p>
+
+    <div class="savebox" id="saveBox">
+      <div class="grid2">
+        <div><label for="memberSel">회원</label><select id="memberSel"><option value="">불러오는 중…</option></select></div>
+        <div><label for="dateIn">수업 날짜</label><input id="dateIn" type="date"></div>
+      </div>
+      <div class="row"><button class="btn terra" id="saveLogBtn">회원 페이지에 저장</button></div>
+      <div class="msg" id="saveMsg"></div>
+      <div class="row hidden" id="afterSave">
+        <button class="btn ghost" id="openMemberBtn">회원 페이지 열기</button>
+        <button class="btn ghost" id="copyLinkBtn">회원 링크 복사</button>
+      </div>
+    </div>
+    <p class="note hidden" id="noSheet">시트가 연결되면 여기에 [회원 페이지에 저장] 버튼이 생겨요.</p>
+
     <div class="row">
-      <button class="btn terra" id="shareBtn">공유하기</button>
+      <button class="btn ghost" id="shareBtn">카톡으로 공유</button>
       <button class="btn ghost" id="copyBtn">복사하기</button>
     </div>
   </section>
@@ -132,6 +156,8 @@ var SJ = (function () {
   var DEFAULTS = {
     model: 'gemini-3.8-flash',
     trainer: '',
+    pin: '',
+    api: '',
     center: '소웰 웰니스 PT 반포',
     closing: '🌿 오늘의 움직임이 내일의 일상을 바꿉니다.'
   };
@@ -289,28 +315,31 @@ var SJ = (function () {
   function cfg(k) {
     var v = store.get(k);
     if (v === null || v === undefined) v = mem[k];
-    if (v === null || v === undefined || v === '') v = k === 'key' ? '' : SJ.DEFAULTS[k];
+    if (v === null || v === undefined || v === '') v = SJ.DEFAULTS[k];
+    if (k === 'api' && !v) v = (window.SOWEL_API && /^https:\/\//.test(window.SOWEL_API)) ? window.SOWEL_API : '';
+    if ((k === 'center' || k === 'closing') && sheet[k]) v = sheet[k];
     return v || '';
   }
+  var sheet = { center: '', closing: '', members: null };
 
   // ── 설정 ──
   function loadSettings() {
     $('sKey').value = cfg('key');
     $('sModel').value = cfg('model');
     $('sTrainer').value = cfg('trainer');
-    $('sCenter').value = cfg('center');
-    $('sClosing').value = cfg('closing');
-    if (!cfg('key')) $('settingsBox').open = true;
+    $('sPin').value = cfg('pin');
+    $('sApi').value = store.get('api') || '';
+    if (!cfg('key') || (cfg('api') && !cfg('pin'))) $('settingsBox').open = true;
   }
   $('saveBtn').onclick = function () {
-    ['key', 'model', 'trainer', 'center', 'closing'].forEach(function (k) {
+    ['key', 'model', 'trainer', 'pin', 'api'].forEach(function (k) {
       var id = 's' + k.charAt(0).toUpperCase() + k.slice(1);
       var v = $(id).value.trim();
       mem[k] = v; store.set(k, v);
     });
     $('settingsBox').open = false;
     setStatus('설정을 저장했어요.', 'ok');
-    if (lastData) showResult(lastData);
+    loadMembers().then(function () { if (lastData) showResult(lastData); });
   };
 
   // ── 상태 표시 ──
@@ -463,7 +492,10 @@ var SJ = (function () {
   }
 
   function showResult(data) {
-    $('result').value = SJ.render(data, { trainer: cfg('trainer'), center: cfg('center'), closing: cfg('closing') });
+    $('result').value = SJ.render(data, { trainer: cfg('trainer'), center: cfg('center'), closing: cfg('closing') }, pickedDate());
+    logId = 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    savedLink = ''; setSaveMsg(''); $('afterSave').classList.add('hidden');
+    $('saveLogBtn').disabled = false; $('saveLogBtn').textContent = '회원 페이지에 저장';
     $('transcript').value = data.transcript || '';
     $('resultBox').classList.remove('hidden');
     $('transBox').classList.remove('hidden');
@@ -492,7 +524,95 @@ var SJ = (function () {
     setStatus(ok ? '이 기기는 공유창을 지원하지 않아 복사해 뒀어요. 카톡에 붙여넣어 주세요.' : '복사가 안 됐어요. 글을 길게 눌러 직접 복사해 주세요.', ok ? 'ok' : 'err');
   };
 
+  // ── 시트 연결 · 저장 ──
+  var logId = '', savedLink = '', savedName = '';
+
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function pickedDate() {
+    var v = $('dateIn').value;
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date();
+  }
+  $('dateIn').value = todayStr();
+  $('dateIn').onchange = function () {
+    var ta = $('result'), lines = ta.value.split('\n');
+    if (lines[0] && lines[0].indexOf('📋') === 0) {
+      lines[0] = '📋 오늘의 수업일지 · ' + SJ.dateLabel(pickedDate());
+      ta.value = lines.join('\n');
+    }
+  };
+
+  function setSaveMsg(msg, kind) {
+    var el = $('saveMsg'); el.className = 'msg' + (kind ? ' ' + kind : ''); el.textContent = msg || '';
+  }
+
+  async function callApi(body) {
+    var r;
+    try {
+      r = await fetch(cfg('api'), { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+    } catch (e) { throw new Error('시트에 연결하지 못했어요. 인터넷과 시트 연결 주소를 확인해 주세요.'); }
+    var j;
+    try { j = await r.json(); }
+    catch (e) { throw new Error('시트 응답을 읽지 못했어요. Apps Script 배포에서 "액세스: 모든 사용자"인지 확인해 주세요.'); }
+    if (!j.ok) throw new Error(j.error || '처리하지 못했어요.');
+    return j;
+  }
+
+  async function loadMembers() {
+    var sel = $('memberSel');
+    if (!cfg('api')) { $('saveBox').classList.add('hidden'); $('noSheet').classList.remove('hidden'); return; }
+    $('saveBox').classList.remove('hidden'); $('noSheet').classList.add('hidden');
+    if (!cfg('pin')) { sel.innerHTML = '<option value="">[설정]에 센터 PIN을 넣어 주세요</option>'; return; }
+    var keep = sel.value;
+    sel.innerHTML = '<option value="">불러오는 중…</option>';
+    try {
+      var j = await callApi({ action: 'members', pin: cfg('pin') });
+      sheet.center = j.center || ''; sheet.closing = j.closing || ''; sheet.members = j.members || [];
+      sel.innerHTML = '';
+      var first = document.createElement('option'); first.value = '';
+      first.textContent = sheet.members.length ? '회원을 고르세요 (' + sheet.members.length + '명)' : '시트 [회원] 탭에 회원을 먼저 적어 주세요';
+      sel.appendChild(first);
+      sheet.members.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); }).forEach(function (m) {
+        var o = document.createElement('option'); o.value = m.code; o.textContent = m.name; sel.appendChild(o);
+      });
+      if (keep) sel.value = keep;
+    } catch (e) {
+      sel.innerHTML = '<option value="">회원 목록을 못 불러왔어요</option>';
+      setSaveMsg(e.message, 'err');
+    }
+  }
+  $('memberSel').onfocus = function () { if (cfg('api') && cfg('pin') && !sheet.members) loadMembers(); };
+
+  $('saveLogBtn').onclick = async function () {
+    var code = $('memberSel').value, text = $('result').value.trim();
+    if (!code) { setSaveMsg('회원을 먼저 골라 주세요.', 'err'); return; }
+    if (!text) { setSaveMsg('일지 내용이 비어 있어요.', 'err'); return; }
+    var btn = $('saveLogBtn'); btn.disabled = true; btn.textContent = '저장 중…'; setSaveMsg('');
+    try {
+      var j = await callApi({ action: 'save', pin: cfg('pin'), code: code, date: $('dateIn').value || todayStr(),
+                              trainer: cfg('trainer'), text: text, transcript: $('transcript').value, id: logId });
+      savedLink = j.link || ''; savedName = j.name || '';
+      setSaveMsg((j.duplicate ? '이미 저장된 일지예요. ' : '') + savedName + '님 페이지에 저장했어요 ✅', 'ok');
+      btn.textContent = '저장 완료';
+      if (savedLink) $('afterSave').classList.remove('hidden');
+    } catch (e) {
+      btn.disabled = false; btn.textContent = '회원 페이지에 저장';
+      setSaveMsg(e.message, 'err');
+    }
+  };
+  $('openMemberBtn').onclick = function () { if (savedLink) window.open(savedLink, '_blank'); };
+  $('copyLinkBtn').onclick = async function () {
+    var msg = savedName + '님, 소웰 수업일지 페이지예요 🌿\n앞으로 수업일지는 여기에 계속 쌓여요. 즐겨찾기나 홈 화면에 추가해 두세요!\n' + savedLink;
+    var ok = false;
+    try { await navigator.clipboard.writeText(msg); ok = true; } catch (e) {}
+    setSaveMsg(ok ? '링크 안내 문구를 복사했어요. 회원 카톡에 처음 한 번만 보내 주세요.' : '복사가 안 됐어요. [회원 페이지 열기] 후 주소를 복사해 주세요.', ok ? 'ok' : 'err');
+  };
+
   loadSettings();
+  loadMembers();
 })();
 </script>
 </body>
