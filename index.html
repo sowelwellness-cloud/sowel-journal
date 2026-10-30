@@ -67,88 +67,190 @@
   .debug{font-size:11px;color:var(--muted);margin-top:8px;word-break:break-all}
   .hidden{display:none !important}
   .note{font-size:12px;color:var(--muted);margin-top:6px}
+
+  header .who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .link{background:none;border:0;padding:0;font:inherit;font-size:13px;color:var(--terra);text-decoration:underline;cursor:pointer}
+  .tabs{display:flex;gap:6px;margin-top:16px;background:var(--soft,#EFE6D8);padding:4px;border-radius:12px}
+  .tab{flex:1;border:0;background:transparent;font:inherit;font-size:15px;font-weight:500;color:var(--muted);padding:9px 0;border-radius:9px;cursor:pointer}
+  .tab.on{background:var(--card);color:var(--brown);font-weight:700;box-shadow:0 1px 3px rgba(44,38,32,.12)}
+  .chip{display:inline-block;font-size:12px;color:var(--brown);background:#EFE6D8;border-radius:99px;padding:2px 9px;margin-left:6px;font-weight:500;vertical-align:1px}
+  .chip.terra{background:var(--terra);color:#fff}
+  .chip.soft{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .logcard{padding:0}
+  .logcard>summary{padding:14px 16px;list-style:none;cursor:pointer}
+  .logcard>summary::-webkit-details-marker{display:none}
+  .logcard>summary::after{display:none}
+  .loghead{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px}
+  .loghead b{font-size:15px}
+  .loghead>span:not(.chip){font-size:15px}
+  .logcard .preview{font-size:13px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .logcard[open] .preview{display:none}
+  .logbody{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;font-size:14px;padding:12px 16px 0;border-top:1px solid #EFE6D8}
+  .logcard>.row,.logcard>.editbox,.logcard>.msg{padding:0 16px}
+  .logcard>.row{padding-bottom:14px}
+  .logcard>.msg:empty{display:none}
+  .logcard>.msg{padding-bottom:12px}
+  .editbox{padding-top:12px !important;border-top:1px solid #EFE6D8}
+  .editbox textarea{margin-top:10px}
+  .confirm{align-items:center}
+  .confirm span{flex-basis:100%;font-size:14px;color:var(--err)}
+  .btn.danger{color:var(--err)}
+  .btn.danger-fill{background:var(--err);color:#fff}
+  .btn.small{flex:0 0 auto !important;padding:7px 12px;font-size:13px}
+  .list .item{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #EFE6D8}
+  .list .item:last-child{border-bottom:0}
+  .list .item.off{opacity:.55}
+  .grow{flex:1;min-width:0}
+  .logcard .row .btn{white-space:nowrap;padding:10px 8px}
+  .grid2>.hidden+div{grid-column:1/-1}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>🌿 소웰 수업일지</h1>
-    <span class="tag">테스트</span>
+    <div class="who hidden" id="who"><span id="whoName"></span><button class="link" id="logoutBtn">로그아웃</button></div>
   </header>
-  <p class="sub">수업 끝나고 말로 남기면, 회원에게 보낼 일지로 정리해 드려요.</p>
 
-  <!-- 설정 -->
-  <details class="card" id="settingsBox">
-    <summary>⚙️ 설정</summary>
-    <label for="sKey">Gemini API 키</label>
-    <input id="sKey" type="password" autocomplete="off" placeholder="키를 붙여넣으세요">
-    <p class="note">키는 이 폰(브라우저)에만 저장되고, 페이지 코드에는 들어가지 않아요.</p>
-    <label for="sModel">AI 모델</label>
-    <input id="sModel" type="text" autocomplete="off">
-    <label for="sTrainer">담당 선생님 이름</label>
-    <input id="sTrainer" type="text" placeholder="예: 권경준">
-    <label for="sPin">센터 PIN</label>
-    <input id="sPin" type="password" inputmode="numeric" autocomplete="off" placeholder="시트 [설정] 탭에 적은 숫자">
-    <label for="sApi">시트 연결 주소 <span style="font-weight:400">(보통 비워두세요)</span></label>
-    <input id="sApi" type="url" autocomplete="off" placeholder="비워두면 기본 연결을 써요">
-    <p class="note">센터명과 마무리 문구는 시트의 [설정] 탭에서 바꿔요.</p>
-    <div class="row"><button class="btn" id="saveBtn">저장</button></div>
-  </details>
-
-  <!-- 녹음 -->
-  <section class="card">
-    <div class="recbox">
-      <button class="rec" id="recBtn" aria-label="녹음 시작">
-        <span class="ico">🎙️</span><span id="recLabel">녹음 시작</span>
-      </button>
-      <div class="timer" id="timer">0:00</div>
-      <div class="hint" id="hint">예) "데드리프트 삼십키로 열다섯개 삼세트, 왼쪽 골반이 안정됨, 숙제는 오픈북 열개 삼세트 매일"</div>
-    </div>
-    <div class="status" id="status"></div>
-    <div class="row hidden" id="retryRow"><button class="btn" id="retryBtn">같은 녹음으로 다시 시도</button></div>
-
-    <details style="margin-top:10px">
-      <summary style="font-size:14px">⌨️ 말 대신 글로 테스트</summary>
-      <textarea id="textIn" placeholder="여기에 메모를 적고 [정리하기]를 누르세요" style="margin-top:10px"></textarea>
-      <div class="row"><button class="btn" id="textBtn">정리하기</button></div>
+  <!-- ═════════ 로그인 ═════════ -->
+  <section class="card" id="loginView">
+    <h2>선생님 로그인</h2>
+    <p class="note" style="margin-top:0">대표에게 받은 개인 PIN을 넣어 주세요. 이 폰에서는 한 번만 넣으면 돼요.</p>
+    <input id="pinIn" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN (숫자 4~8자리)" maxlength="8">
+    <div class="row"><button class="btn terra" id="loginBtn">로그인</button></div>
+    <div class="msg" id="loginMsg"></div>
+    <details style="margin-top:12px">
+      <summary style="font-size:13px;color:var(--muted);font-weight:500">고급: 시트 연결 주소</summary>
+      <input id="sApi" type="url" autocomplete="off" placeholder="비워두면 기본 연결을 써요" style="margin-top:8px">
     </details>
   </section>
 
-  <!-- 결과 -->
-  <section class="card hidden" id="resultBox">
-    <h2>✅ 정리된 수업일지</h2>
-    <textarea id="result" aria-label="정리된 수업일지"></textarea>
-    <p class="note">저장하기 전에 직접 고칠 수 있어요.</p>
+  <!-- ═════════ 로그인 후 ═════════ -->
+  <div class="hidden" id="appView">
+    <nav class="tabs" role="tablist">
+      <button class="tab on" data-tab="record" role="tab">기록</button>
+      <button class="tab" data-tab="logs" role="tab" id="logsTabBtn">내 일지</button>
+      <button class="tab hidden" data-tab="admin" role="tab" id="adminTabBtn">관리</button>
+    </nav>
 
-    <div class="savebox" id="saveBox">
-      <div class="grid2">
-        <div><label for="memberSel">회원</label><select id="memberSel"><option value="">불러오는 중…</option></select></div>
-        <div><label for="dateIn">수업 날짜</label><input id="dateIn" type="date"></div>
-      </div>
-      <div class="row"><button class="btn terra" id="saveLogBtn">회원 페이지에 저장</button></div>
-      <div class="msg" id="saveMsg"></div>
-      <div class="row hidden" id="afterSave">
-        <button class="btn ghost" id="openMemberBtn">회원 페이지 열기</button>
-        <button class="btn ghost" id="copyLinkBtn">회원 링크 복사</button>
-      </div>
+    <!-- ───── 기록 ───── -->
+    <div id="tab-record">
+      <section class="card">
+        <div class="recbox">
+          <button class="rec" id="recBtn" aria-label="녹음 시작">
+            <span class="ico">🎙️</span><span id="recLabel">녹음 시작</span>
+          </button>
+          <div class="timer" id="timer">0:00</div>
+          <div class="hint" id="hint">운동(무게·횟수·세트) → 좋아진 점 → 숙제 → 다음 수업 순서로 말해 주세요</div>
+        </div>
+        <div class="status" id="status"></div>
+        <div class="row hidden" id="retryRow"><button class="btn" id="retryBtn">같은 녹음으로 다시 시도</button></div>
+
+        <details style="margin-top:10px">
+          <summary style="font-size:14px">⌨️ 말 대신 글로 쓰기</summary>
+          <textarea id="textIn" placeholder="여기에 메모를 적고 [정리하기]를 누르세요" style="margin-top:10px"></textarea>
+          <div class="row"><button class="btn" id="textBtn">정리하기</button></div>
+        </details>
+      </section>
+
+      <section class="card hidden" id="resultBox">
+        <h2>✅ 정리된 수업일지</h2>
+        <textarea id="result" aria-label="정리된 수업일지"></textarea>
+        <p class="note">저장하기 전에 직접 고칠 수 있어요.</p>
+
+        <div class="savebox" id="saveBox">
+          <div class="grid2">
+            <div><label for="memberSel">회원</label><select id="memberSel"><option value="">불러오는 중…</option></select></div>
+            <div><label for="dateIn">수업 날짜</label><input id="dateIn" type="date"></div>
+          </div>
+          <div class="row"><button class="btn terra" id="saveLogBtn">회원 페이지에 저장</button></div>
+          <div class="msg" id="saveMsg"></div>
+          <div class="row hidden" id="afterSave">
+            <button class="btn ghost" id="openMemberBtn">회원 페이지 열기</button>
+            <button class="btn ghost" id="copyLinkBtn">회원 링크 복사</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn ghost" id="shareBtn">카톡으로 공유</button>
+          <button class="btn ghost" id="copyBtn">복사하기</button>
+        </div>
+      </section>
+
+      <section class="card hidden" id="transBox">
+        <details>
+          <summary>📝 받아쓴 원문 보기 · 고치기</summary>
+          <textarea id="transcript" style="margin-top:10px"></textarea>
+          <p class="note">잘못 알아들은 부분을 고치고 다시 정리할 수 있어요.</p>
+          <div class="row"><button class="btn ghost" id="redoBtn">이 내용으로 다시 정리</button></div>
+        </details>
+        <div class="debug" id="debug"></div>
+      </section>
+
+      <details class="card" id="settingsBox">
+        <summary>⚙️ 고급 설정</summary>
+        <p class="note" style="margin-top:8px">보통은 비워두세요. 시트 [설정] 탭에 값이 있으면 시트 값을 먼저 써요.</p>
+        <label for="sKey">Gemini API 키 (시트에 키가 없을 때만)</label>
+        <input id="sKey" type="password" autocomplete="off">
+        <label for="sModel">AI 모델 (시트에 모델이 없을 때만)</label>
+        <input id="sModel" type="text" autocomplete="off" placeholder="gemini-3.5-flash-lite">
+        <div class="row"><button class="btn" id="saveBtn">저장</button></div>
+      </details>
     </div>
-    <p class="note hidden" id="noSheet">시트가 연결되면 여기에 [회원 페이지에 저장] 버튼이 생겨요.</p>
 
-    <div class="row">
-      <button class="btn ghost" id="shareBtn">카톡으로 공유</button>
-      <button class="btn ghost" id="copyBtn">복사하기</button>
+    <!-- ───── 일지 ───── -->
+    <div class="hidden" id="tab-logs">
+      <section class="card">
+        <div class="grid2">
+          <div class="hidden" id="trainerFilterBox"><label for="trainerFilter">선생님</label><select id="trainerFilter"><option value="">전체</option></select></div>
+          <div><label for="memberFilter">회원</label><select id="memberFilter"><option value="">전체</option></select></div>
+        </div>
+        <div class="msg" id="logsMsg"></div>
+      </section>
+      <div id="logList"></div>
+      <div class="row hidden" id="moreRow"><button class="btn ghost" id="moreBtn">더 보기</button></div>
     </div>
-  </section>
 
-  <section class="card hidden" id="transBox">
-    <details>
-      <summary>📝 받아쓴 원문 보기 · 고치기</summary>
-      <textarea id="transcript" style="margin-top:10px"></textarea>
-      <p class="note">잘못 알아들은 부분을 고치고 다시 정리할 수 있어요.</p>
-      <div class="row"><button class="btn ghost" id="redoBtn">이 내용으로 다시 정리</button></div>
-    </details>
-    <div class="debug" id="debug"></div>
-  </section>
+    <!-- ───── 관리 (관리자) ───── -->
+    <div class="hidden" id="tab-admin">
+      <section class="card">
+        <h2>선생님</h2>
+        <div id="teacherList" class="list"></div>
+        <details id="teacherFormBox" style="margin-top:12px">
+          <summary id="teacherFormTitle" style="font-size:14px">＋ 선생님 추가</summary>
+          <input type="hidden" id="tOriginal">
+          <label for="tName">이름</label>
+          <input id="tName" type="text" maxlength="20" placeholder="예: 권경준">
+          <label for="tPin" id="tPinLabel">PIN (숫자 4~8자리)</label>
+          <input id="tPin" type="text" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="선생님마다 다르게">
+          <div class="grid2" style="margin-top:12px">
+            <div><label for="tRole" style="margin-top:0">권한</label><select id="tRole"><option>선생님</option><option>관리자</option></select></div>
+            <div><label for="tActive" style="margin-top:0">사용</label><select id="tActive"><option value="1">사용</option><option value="0">사용 중지</option></select></div>
+          </div>
+          <p class="note">관리자는 모든 선생님의 일지를 보고 고칠 수 있고, 선생님·회원을 관리해요.</p>
+          <div class="row">
+            <button class="btn terra" id="tSaveBtn">저장</button>
+            <button class="btn ghost" id="tCancelBtn">취소</button>
+          </div>
+          <div class="msg" id="tMsg"></div>
+        </details>
+      </section>
+
+      <section class="card">
+        <h2>회원</h2>
+        <div class="grid2">
+          <div><label for="mName" style="margin-top:0">이름</label><input id="mName" type="text" maxlength="30"></div>
+          <div><label for="mPhone" style="margin-top:0">연락처 (선택)</label><input id="mPhone" type="tel" maxlength="20"></div>
+        </div>
+        <div class="row"><button class="btn terra" id="mAddBtn">회원 등록</button></div>
+        <div class="msg" id="mMsg"></div>
+        <details style="margin-top:12px">
+          <summary style="font-size:14px" id="memberListTitle">회원 목록 · 링크</summary>
+          <div id="memberList" class="list" style="margin-top:8px"></div>
+        </details>
+      </section>
+    </div>
+  </div>
 </div>
 
 <!-- ───────── 핵심 로직 (화면과 분리) ───────── -->
@@ -318,54 +420,159 @@ var SJ = (function () {
   var MAX_SEC = 180;
 
   var store = {
-    get: function (k) { try { return localStorage.getItem('sj_' + k); } catch (e) { return null; } },
-    set: function (k, v) { try { localStorage.setItem('sj_' + k, v); } catch (e) {} }
+    get: function (k) { try { return localStorage.getItem('sj_' + k); } catch (e) { return mem[k] === undefined ? null : mem[k]; } },
+    set: function (k, v) { mem[k] = v; try { localStorage.setItem('sj_' + k, v); } catch (e) {} },
+    del: function (k) { delete mem[k]; try { localStorage.removeItem('sj_' + k); } catch (e) {} }
   };
   var mem = {};
-  function cfg(k) {
-    var v = store.get(k);
-    if (v === null || v === undefined) v = mem[k];
-    if (v === null || v === undefined || v === '') v = SJ.DEFAULTS[k];
-    if (k === 'api' && !v) v = (window.SOWEL_API && /^https:\/\//.test(window.SOWEL_API)) ? window.SOWEL_API : '';
-    if ((k === 'center' || k === 'closing') && sheet[k]) v = sheet[k];
-    return v || '';
-  }
-  var sheet = { center: '', closing: '', members: null };
 
-  // ── 설정 ──
-  function loadSettings() {
-    $('sKey').value = cfg('key');
-    $('sModel').value = cfg('model');
-    $('sTrainer').value = cfg('trainer');
-    $('sPin').value = cfg('pin');
-    $('sApi').value = store.get('api') || '';
-    if (!cfg('key') || (cfg('api') && !cfg('pin'))) $('settingsBox').open = true;
+  /** 로그인하면 시트에서 받아오는 값 */
+  var S = { me: null, center: '', closing: '', apiKey: '', model: '', members: [] };
+
+  function apiUrl() {
+    var v = store.get('api') || '';
+    if (!v && window.SOWEL_API && /^https:\/\//.test(window.SOWEL_API)) v = window.SOWEL_API;
+    return v;
   }
-  $('saveBtn').onclick = function () {
-    ['key', 'model', 'trainer', 'pin', 'api'].forEach(function (k) {
-      var id = 's' + k.charAt(0).toUpperCase() + k.slice(1);
-      var v = $(id).value.trim();
-      mem[k] = v; store.set(k, v);
-    });
-    $('settingsBox').open = false;
-    setStatus('설정을 저장했어요.', 'ok');
-    loadMembers().then(function () { if (lastData) showResult(lastData); });
+  function apiKey() { return S.apiKey || store.get('key') || ''; }
+  function model() { return S.model || store.get('model') || SJ.DEFAULTS.model; }
+  function center() { return S.center || SJ.DEFAULTS.center; }
+  function closing() { return S.closing || SJ.DEFAULTS.closing; }
+  function isAdmin() { return S.me && S.me.role === '관리자'; }
+  function memberLink(code) { return new URL('member.html', location.href).href.split('?')[0] + '?c=' + code; }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function msg(id, text, kind) {
+    var e = $(id); e.className = 'msg' + (kind ? ' ' + kind : ''); e.textContent = text || '';
+  }
+
+  // ═════════ 시트 API ═════════
+  async function callApi(body, opt) {
+    var url = apiUrl();
+    if (!url) throw new Error('시트 연결 주소가 없어요. config.js를 확인해 주세요.');
+    if (!(opt && opt.noPin)) body.pin = store.get('pin') || '';
+    var r;
+    try {
+      r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+    } catch (e) { throw new Error('시트에 연결하지 못했어요. 인터넷을 확인해 주세요.'); }
+    var j;
+    try { j = await r.json(); }
+    catch (e) { throw new Error('시트 응답을 읽지 못했어요. Apps Script 배포(액세스: 모든 사용자)를 확인해 주세요.'); }
+    if (j.auth && !(opt && opt.login)) { logout('로그인이 풀렸어요. 다시 로그인해 주세요.\n(' + (j.error || '') + ')'); }
+    if (!j.ok) { var err = new Error(j.error || '처리하지 못했어요.'); err.data = j; throw err; }
+    return j;
+  }
+
+  // ═════════ 로그인 ═════════
+  async function login(pin, silent) {
+    $('loginBtn').disabled = true;
+    msg('loginMsg', silent ? '로그인 중…' : '확인 중…');
+    try {
+      var j = await callApi({ action: 'login', pin: pin }, { noPin: true, login: true });
+      store.set('pin', pin);
+      S.me = j.me; S.center = j.center; S.closing = j.closing; S.apiKey = j.apiKey; S.model = j.model;
+      setMembers(j.members || []);
+      enterApp();
+    } catch (e) {
+      if (e.data && e.data.auth) store.del('pin');
+      showLogin();
+      msg('loginMsg', e.message, 'err');
+    } finally {
+      $('loginBtn').disabled = false;
+    }
+  }
+  $('loginBtn').onclick = function () {
+    var pin = $('pinIn').value.trim();
+    if (!/^\d{4,8}$/.test(pin)) { msg('loginMsg', 'PIN은 숫자 4~8자리예요.', 'err'); return; }
+    var a = $('sApi').value.trim();
+    if (a) store.set('api', a); else store.del('api');
+    login(pin);
   };
+  $('pinIn').onkeydown = function (e) { if (e.key === 'Enter') $('loginBtn').click(); };
 
-  // ── 상태 표시 ──
-  function setStatus(msg, kind, busy) {
-    var el = $('status');
-    el.className = 'status' + (kind ? ' ' + kind : '');
-    el.innerHTML = '';
-    if (busy) { var s = document.createElement('span'); s.className = 'spin'; el.appendChild(s); }
-    el.appendChild(document.createTextNode(msg || ''));
-    el.style.whiteSpace = 'pre-line';
+  function showLogin() {
+    $('appView').classList.add('hidden'); $('who').classList.add('hidden');
+    $('loginView').classList.remove('hidden');
+    $('sApi').value = store.get('api') || '';
+  }
+  function logout(reason) {
+    store.del('pin');
+    S.me = null;
+    $('pinIn').value = '';
+    showLogin();
+    msg('loginMsg', reason || '로그아웃했어요.', reason ? 'err' : 'ok');
+  }
+  $('logoutBtn').onclick = function () { logout(); };
+
+  function enterApp() {
+    $('loginView').classList.add('hidden');
+    $('appView').classList.remove('hidden');
+    $('who').classList.remove('hidden');
+    $('whoName').textContent = S.me.name + (isAdmin() ? ' · 관리자' : ' 선생님');
+    $('adminTabBtn').classList.toggle('hidden', !isAdmin());
+    $('logsTabBtn').textContent = isAdmin() ? '일지' : '내 일지';
+    $('trainerFilterBox').classList.toggle('hidden', !isAdmin());
+    $('sKey').value = store.get('key') || '';
+    $('sModel').value = store.get('model') || '';
+    logsLoaded = false;
+    showTab(currentTab);
+    if (!apiKey()) { $('settingsBox').open = true; setStatus('시트 [설정] 탭에 Gemini API 키가 없어요. 대표에게 알려 주세요.', 'err'); }
+  }
+
+  // ═════════ 탭 ═════════
+  var currentTab = 'record';
+  function showTab(name) {
+    if (name === 'admin' && !isAdmin()) name = 'record';
+    currentTab = name;
+    ['record', 'logs', 'admin'].forEach(function (t) { $('tab-' + t).classList.toggle('hidden', t !== name); });
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) { b.classList.toggle('on', b.dataset.tab === name); });
+    if (name === 'logs' && !logsLoaded) loadLogs();
+    if (name === 'admin') loadTeachers();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
+    b.onclick = function () { showTab(b.dataset.tab); };
+  });
+
+  // ═════════ 회원 목록 (기록·일지·관리 공통) ═════════
+  function setMembers(list) {
+    S.members = (list || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
+    fillSelect($('memberSel'), S.members.length ? '회원을 고르세요 (' + S.members.length + '명)' : '등록된 회원이 없어요');
+    fillSelect($('memberFilter'), '전체 회원');
+    renderMemberList();
+  }
+  function fillSelect(sel, firstLabel) {
+    var keep = sel.value;
+    sel.innerHTML = '';
+    var o = el('option', '', firstLabel); o.value = ''; sel.appendChild(o);
+    S.members.forEach(function (m) { var x = el('option', '', m.name); x.value = m.code; sel.appendChild(x); });
+    if (keep) sel.value = keep;
+  }
+
+  // ═════════ 기록 탭: 상태 표시 ═════════
+  function setStatus(text, kind, busy) {
+    var e = $('status');
+    e.className = 'status' + (kind ? ' ' + kind : '');
+    e.innerHTML = '';
+    if (busy) e.appendChild(el('span', 'spin'));
+    e.appendChild(document.createTextNode(text || ''));
+    e.style.whiteSpace = 'pre-line';
   }
   function setBusy(b) {
     $('recBtn').disabled = b; $('textBtn').disabled = b; $('redoBtn').disabled = b; $('retryBtn').disabled = b;
   }
+  $('saveBtn').onclick = function () {
+    var k = $('sKey').value.trim(), m = $('sModel').value.trim();
+    if (k) store.set('key', k); else store.del('key');
+    if (m) store.set('model', m); else store.del('model');
+    $('settingsBox').open = false;
+    setStatus('설정을 저장했어요.', 'ok');
+  };
 
-  // ── 녹음 ──
+  // ═════════ 녹음 ═════════
   var rec = null, stream = null, chunks = [], t0 = 0, tick = null, recMime = '';
   function fmtTime(sec) { return Math.floor(sec / 60) + ':' + ('0' + Math.floor(sec % 60)).slice(-2); }
 
@@ -377,7 +584,7 @@ var SJ = (function () {
   }
 
   async function startRec() {
-    if (!cfg('key')) { $('settingsBox').open = true; setStatus('먼저 [설정]에 API 키를 넣어 주세요.', 'err'); return; }
+    if (!apiKey()) { $('settingsBox').open = true; setStatus('Gemini API 키가 없어요. 대표에게 시트 [설정] 탭에 넣어 달라고 해주세요.', 'err'); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
       setStatus('이 브라우저에서는 녹음이 안 돼요. 아이폰은 사파리, 안드로이드는 크롬 최신 버전으로 열어 주세요.', 'err');
       return;
@@ -472,11 +679,10 @@ var SJ = (function () {
     if (rec && rec.state === 'recording') stopRec(); else startRec();
   };
 
-  // ── 글로 테스트 / 다시 정리 ──
   function organizeText(txt) {
     txt = String(txt || '').trim();
     if (!txt) { setStatus('내용을 먼저 적어 주세요.', 'err'); return; }
-    if (!cfg('key')) { $('settingsBox').open = true; setStatus('먼저 [설정]에 API 키를 넣어 주세요.', 'err'); return; }
+    if (!apiKey()) { $('settingsBox').open = true; setStatus('Gemini API 키가 없어요. 대표에게 알려 주세요.', 'err'); return; }
     setBusy(true);
     debugInfo = '글 입력 · ' + txt.length + '자';
     organize([{ text: '아래는 트레이너의 글 메모입니다. 규칙대로 정리하세요.\n\n' + txt }]);
@@ -484,36 +690,36 @@ var SJ = (function () {
   $('textBtn').onclick = function () { organizeText($('textIn').value); };
   $('redoBtn').onclick = function () { organizeText($('transcript').value); };
 
-  // ── AI 호출 (자동 재시도 + 예비 모델) ──
+  // ═════════ AI 호출 (자동 재시도 + 예비 모델) ═════════
   var lastData = null, debugInfo = '', lastParts = null;
   var FALLBACK_MODELS = ['gemini-3.5-flash-lite'];
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
   var CALL_TIMEOUT = 40000, TOTAL_LIMIT = 100000;
-  var noThink = {};   // 생각 설정을 거부한 모델은 기억해 두고 빼고 보냄
-  async function callModel(model, parts) {
-    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
+  var noThink = {};
+  async function callModel(m, parts) {
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent';
     async function go() {
       var ctl = window.AbortController ? new AbortController() : null;
       var timer = setTimeout(function () { if (ctl) ctl.abort(); }, CALL_TIMEOUT);
       try {
         var r = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg('key') },
-          body: JSON.stringify(SJ.buildRequest(parts, model, noThink[model])),
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey() },
+          body: JSON.stringify(SJ.buildRequest(parts, m, noThink[m])),
           signal: ctl ? ctl.signal : undefined
         });
         var body = await r.json().catch(function () { return {}; });
         return { ok: r.ok, status: r.status, body: body };
       } catch (e) {
-        if (e && e.name === 'AbortError') return { ok: false, status: 504, body: { error: { message: '응답 시간 초과 (' + model + ')' } } };
+        if (e && e.name === 'AbortError') return { ok: false, status: 504, body: { error: { message: '응답 시간 초과 (' + m + ')' } } };
         throw e;
       } finally { clearTimeout(timer); }
     }
     var res = await go();
-    var msg = (res.body && res.body.error && res.body.error.message) || '';
-    if (!res.ok && res.status === 400 && !noThink[model] && /think/i.test(msg)) {
-      noThink[model] = true;
+    var em = (res.body && res.body.error && res.body.error.message) || '';
+    if (!res.ok && res.status === 400 && !noThink[m] && /think/i.test(em)) {
+      noThink[m] = true;
       res = await go();
     }
     return res;
@@ -526,7 +732,7 @@ var SJ = (function () {
     var phase = '일지로 정리하는 중…';
     var ticker = setInterval(function () { setStatus(phase + ' ' + Math.round((Date.now() - t) / 1000) + '초', '', true); }, 1000);
     setStatus(phase, '', true);
-    var main = cfg('model');
+    var main = model();
     var models = [main].concat(FALLBACK_MODELS.filter(function (m) { return m !== main; }));
     var lastErr = '';
     try {
@@ -548,13 +754,12 @@ var SJ = (function () {
           var busy = res.status === 429 || res.status >= 500;
           if (busy && attempt < 1) { await wait(2000); continue; }
           if (res.status === 404 || res.status === 400) {
-            // "더 이상 제공 안 함, models/○○○를 쓰세요" 안내가 오면 그 모델을 예비 목록에 추가
             var sug = /models\/([a-z0-9][a-z0-9.\-]*[a-z0-9])/ig, mm, emsg = (res.body && res.body.error && res.body.error.message) || '';
             while ((mm = sug.exec(emsg))) { if (models.indexOf(mm[1]) < 0) models.splice(mi + 1, 0, mm[1]); }
             if (res.status === 404 || models.length > mi + 1 && /no longer|deprecat|not found|not supported/i.test(emsg)) break;
           }
-          if (busy) break;                           // 다음 예비 모델로
-          throw new Error(lastErr);                 // 키·권한 문제는 바로 알려줌
+          if (busy) break;
+          throw new Error(lastErr);
         }
       }
       throw new Error(lastErr || 'AI가 응답하지 않아요.');
@@ -577,9 +782,9 @@ var SJ = (function () {
   };
 
   function showResult(data) {
-    $('result').value = SJ.render(data, { trainer: cfg('trainer'), center: cfg('center'), closing: cfg('closing') }, pickedDate());
+    $('result').value = SJ.render(data, { trainer: S.me ? S.me.name : '', center: center(), closing: closing() }, pickedDate());
     logId = 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-    savedLink = ''; setSaveMsg(''); $('afterSave').classList.add('hidden');
+    savedLink = ''; msg('saveMsg', ''); $('afterSave').classList.add('hidden');
     $('saveLogBtn').disabled = false; $('saveLogBtn').textContent = '회원 페이지에 저장';
     $('transcript').value = data.transcript || '';
     $('resultBox').classList.remove('hidden');
@@ -587,17 +792,18 @@ var SJ = (function () {
     $('resultBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // ── 복사 / 공유 ──
-  async function copyText(txt) {
+  // ═════════ 복사 / 공유 ═════════
+  async function copyText(txt, fallbackEl) {
     try { await navigator.clipboard.writeText(txt); return true; }
     catch (e) {
-      var ta = $('result'); ta.focus(); ta.select();
+      if (!fallbackEl) return false;
+      fallbackEl.focus(); fallbackEl.select();
       try { return document.execCommand('copy'); } catch (e2) { return false; }
     }
   }
   $('copyBtn').onclick = async function () {
-    setStatus((await copyText($('result').value)) ? '복사했어요. 카톡에 붙여넣으면 돼요.' : '복사가 안 됐어요. 글을 길게 눌러 직접 복사해 주세요.',
-              'ok');
+    var ok = await copyText($('result').value, $('result'));
+    setStatus(ok ? '복사했어요. 카톡에 붙여넣으면 돼요.' : '복사가 안 됐어요. 글을 길게 눌러 직접 복사해 주세요.', ok ? 'ok' : 'err');
   };
   $('shareBtn').onclick = async function () {
     var txt = $('result').value;
@@ -605,99 +811,283 @@ var SJ = (function () {
       try { await navigator.share({ text: txt }); return; }
       catch (e) { if (e && e.name === 'AbortError') return; }
     }
-    var ok = await copyText(txt);
+    var ok = await copyText(txt, $('result'));
     setStatus(ok ? '이 기기는 공유창을 지원하지 않아 복사해 뒀어요. 카톡에 붙여넣어 주세요.' : '복사가 안 됐어요. 글을 길게 눌러 직접 복사해 주세요.', ok ? 'ok' : 'err');
   };
+  function linkMessage(name, link) {
+    return name + '님, 소웰 수업일지 페이지예요 🌿\n앞으로 수업일지는 여기에 계속 쌓여요. 즐겨찾기나 홈 화면에 추가해 두세요!\n' + link;
+  }
 
-  // ── 시트 연결 · 저장 ──
+  // ═════════ 저장 ═════════
   var logId = '', savedLink = '', savedName = '';
 
   function todayStr() {
     var d = new Date();
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
   }
-  function pickedDate() {
-    var v = $('dateIn').value;
+  function parseYmd(v) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
-    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date();
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+  function pickedDate() { return parseYmd($('dateIn').value) || new Date(); }
+  function relabel(text, d) {
+    var lines = String(text || '').split('\n');
+    if (lines[0] && lines[0].indexOf('📋') === 0) lines[0] = '📋 오늘의 수업일지 · ' + SJ.dateLabel(d);
+    return lines.join('\n');
   }
   $('dateIn').value = todayStr();
-  $('dateIn').onchange = function () {
-    var ta = $('result'), lines = ta.value.split('\n');
-    if (lines[0] && lines[0].indexOf('📋') === 0) {
-      lines[0] = '📋 오늘의 수업일지 · ' + SJ.dateLabel(pickedDate());
-      ta.value = lines.join('\n');
-    }
-  };
-
-  function setSaveMsg(msg, kind) {
-    var el = $('saveMsg'); el.className = 'msg' + (kind ? ' ' + kind : ''); el.textContent = msg || '';
-  }
-
-  async function callApi(body) {
-    var r;
-    try {
-      r = await fetch(cfg('api'), { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
-    } catch (e) { throw new Error('시트에 연결하지 못했어요. 인터넷과 시트 연결 주소를 확인해 주세요.'); }
-    var j;
-    try { j = await r.json(); }
-    catch (e) { throw new Error('시트 응답을 읽지 못했어요. Apps Script 배포에서 "액세스: 모든 사용자"인지 확인해 주세요.'); }
-    if (!j.ok) throw new Error(j.error || '처리하지 못했어요.');
-    return j;
-  }
-
-  async function loadMembers() {
-    var sel = $('memberSel');
-    if (!cfg('api')) { $('saveBox').classList.add('hidden'); $('noSheet').classList.remove('hidden'); return; }
-    $('saveBox').classList.remove('hidden'); $('noSheet').classList.add('hidden');
-    if (!cfg('pin')) { sel.innerHTML = '<option value="">[설정]에 센터 PIN을 넣어 주세요</option>'; return; }
-    var keep = sel.value;
-    sel.innerHTML = '<option value="">불러오는 중…</option>';
-    try {
-      var j = await callApi({ action: 'members', pin: cfg('pin') });
-      sheet.center = j.center || ''; sheet.closing = j.closing || ''; sheet.members = j.members || [];
-      sel.innerHTML = '';
-      var first = document.createElement('option'); first.value = '';
-      first.textContent = sheet.members.length ? '회원을 고르세요 (' + sheet.members.length + '명)' : '시트 [회원] 탭에 회원을 먼저 적어 주세요';
-      sel.appendChild(first);
-      sheet.members.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); }).forEach(function (m) {
-        var o = document.createElement('option'); o.value = m.code; o.textContent = m.name; sel.appendChild(o);
-      });
-      if (keep) sel.value = keep;
-    } catch (e) {
-      sel.innerHTML = '<option value="">회원 목록을 못 불러왔어요</option>';
-      setSaveMsg(e.message, 'err');
-    }
-  }
-  $('memberSel').onfocus = function () { if (cfg('api') && cfg('pin') && !sheet.members) loadMembers(); };
+  $('dateIn').onchange = function () { $('result').value = relabel($('result').value, pickedDate()); };
 
   $('saveLogBtn').onclick = async function () {
     var code = $('memberSel').value, text = $('result').value.trim();
-    if (!code) { setSaveMsg('회원을 먼저 골라 주세요.', 'err'); return; }
-    if (!text) { setSaveMsg('일지 내용이 비어 있어요.', 'err'); return; }
-    var btn = $('saveLogBtn'); btn.disabled = true; btn.textContent = '저장 중…'; setSaveMsg('');
+    if (!code) { msg('saveMsg', '회원을 먼저 골라 주세요.', 'err'); return; }
+    if (!text) { msg('saveMsg', '일지 내용이 비어 있어요.', 'err'); return; }
+    var btn = $('saveLogBtn'); btn.disabled = true; btn.textContent = '저장 중…'; msg('saveMsg', '');
     try {
-      var j = await callApi({ action: 'save', pin: cfg('pin'), code: code, date: $('dateIn').value || todayStr(),
-                              trainer: cfg('trainer'), text: text, transcript: $('transcript').value, id: logId });
-      savedLink = j.link || ''; savedName = j.name || '';
-      setSaveMsg((j.duplicate ? '이미 저장된 일지예요. ' : '') + savedName + '님 페이지에 저장했어요 ✅', 'ok');
+      var j = await callApi({ action: 'save', code: code, date: $('dateIn').value || todayStr(),
+                              text: text, transcript: $('transcript').value, id: logId });
+      savedLink = j.link || memberLink(code); savedName = j.name || '';
+      msg('saveMsg', (j.duplicate ? '이미 저장된 일지예요. 고치려면 [일지] 탭에서 수정해 주세요. ' : '') + savedName + '님 페이지에 저장했어요 ✅', 'ok');
       btn.textContent = '저장 완료';
-      if (savedLink) $('afterSave').classList.remove('hidden');
+      $('afterSave').classList.remove('hidden');
+      logsLoaded = false;
     } catch (e) {
       btn.disabled = false; btn.textContent = '회원 페이지에 저장';
-      setSaveMsg(e.message, 'err');
+      msg('saveMsg', e.message, 'err');
     }
   };
   $('openMemberBtn').onclick = function () { if (savedLink) window.open(savedLink, '_blank'); };
   $('copyLinkBtn').onclick = async function () {
-    var msg = savedName + '님, 소웰 수업일지 페이지예요 🌿\n앞으로 수업일지는 여기에 계속 쌓여요. 즐겨찾기나 홈 화면에 추가해 두세요!\n' + savedLink;
-    var ok = false;
-    try { await navigator.clipboard.writeText(msg); ok = true; } catch (e) {}
-    setSaveMsg(ok ? '링크 안내 문구를 복사했어요. 회원 카톡에 처음 한 번만 보내 주세요.' : '복사가 안 됐어요. [회원 페이지 열기] 후 주소를 복사해 주세요.', ok ? 'ok' : 'err');
+    var ok = await copyText(linkMessage(savedName, savedLink));
+    msg('saveMsg', ok ? '링크 안내 문구를 복사했어요. 회원 카톡에 처음 한 번만 보내 주세요.' : '복사가 안 됐어요. [회원 페이지 열기] 후 주소를 복사해 주세요.', ok ? 'ok' : 'err');
   };
 
-  loadSettings();
-  loadMembers();
+  // ═════════ 일지 탭 ═════════
+  var logsLoaded = false, logLimit = 30;
+  async function loadLogs(more) {
+    if (!more) logLimit = 30;
+    msg('logsMsg', '불러오는 중…');
+    try {
+      var j = await callApi({ action: 'logs', limit: logLimit,
+                              trainer: isAdmin() ? $('trainerFilter').value : '', code: $('memberFilter').value });
+      logsLoaded = true;
+      if (isAdmin()) {
+        var sel = $('trainerFilter'), keep = sel.value;
+        sel.innerHTML = '<option value="">전체 선생님</option>';
+        (j.trainers || []).forEach(function (n) { var o = el('option', '', n); o.value = n; sel.appendChild(o); });
+        sel.value = keep;
+      }
+      renderLogs(j.logs || []);
+      msg('logsMsg', j.total ? j.total + '개 중 ' + Math.min(j.total, (j.logs || []).length) + '개' : (isAdmin() ? '저장된 일지가 없어요.' : '아직 저장한 일지가 없어요.'));
+      $('moreRow').classList.toggle('hidden', !(j.total > (j.logs || []).length));
+    } catch (e) {
+      msg('logsMsg', e.message, 'err');
+    }
+  }
+  $('trainerFilter').onchange = function () { loadLogs(); };
+  $('memberFilter').onchange = function () { loadLogs(); };
+  $('moreBtn').onclick = function () { logLimit += 30; loadLogs(true); };
+
+  function shortLabel(ymd) { var d = parseYmd(ymd); return d ? SJ.dateLabel(d) : ymd; }
+
+  function renderLogs(logs) {
+    var list = $('logList');
+    list.innerHTML = '';
+    logs.forEach(function (log) { list.appendChild(logCard(log)); });
+  }
+
+  function logCard(log) {
+    var card = el('details', 'card logcard');
+    var sum = el('summary');
+    var top = el('div', 'loghead');
+    top.appendChild(el('b', '', shortLabel(log.date)));
+    top.appendChild(el('span', '', log.member));
+    if (isAdmin()) top.appendChild(el('span', 'chip', log.trainer || '담당 없음'));
+    if (log.editedAt) top.appendChild(el('span', 'chip soft', '수정됨'));
+    sum.appendChild(top);
+    var body = String(log.text || '').split('\n').filter(function (l) { return /^- /.test(l); }).map(function (l) { return l.slice(2).split(/\s\d/)[0]; });
+    sum.appendChild(el('div', 'preview', body.length ? body.slice(0, 4).join(' · ') : String(log.text || '').split('\n').slice(1).join(' ').trim().slice(0, 60)));
+    card.appendChild(sum);
+
+    var view = el('div', 'logbody', log.text);
+    card.appendChild(view);
+
+    var actions = el('div', 'row');
+    var bLink = el('button', 'btn ghost', '회원 보기');
+    bLink.onclick = function () { window.open(memberLink(log.code), '_blank'); };
+    actions.appendChild(bLink);
+    if (log.canEdit) {
+      var bEdit = el('button', 'btn ghost', '수정');
+      var bDel = el('button', 'btn ghost danger', '삭제');
+      actions.appendChild(bEdit); actions.appendChild(bDel);
+      bEdit.onclick = function () { openEditor(card, log, view, actions); };
+      bDel.onclick = function () { confirmDelete(card, log, actions); };
+    }
+    card.appendChild(actions);
+    var m = el('div', 'msg'); card.appendChild(m);
+    card._msg = m;
+    return card;
+  }
+
+  function openEditor(card, log, view, actions) {
+    view.classList.add('hidden'); actions.classList.add('hidden');
+    var box = el('div', 'editbox');
+    var date = el('input'); date.type = 'date'; date.value = log.date;
+    var ta = el('textarea'); ta.value = log.text; ta.style.minHeight = '260px';
+    var row = el('div', 'row');
+    var bSave = el('button', 'btn terra', '저장'), bCancel = el('button', 'btn ghost', '취소');
+    row.appendChild(bSave); row.appendChild(bCancel);
+    var lab = el('label', '', '수업 날짜'); lab.style.marginTop = '0';
+    box.appendChild(lab); box.appendChild(date); box.appendChild(ta); box.appendChild(row);
+    card.insertBefore(box, card._msg);
+    date.onchange = function () { var d = parseYmd(date.value); if (d) ta.value = relabel(ta.value, d); };
+    bCancel.onclick = function () { box.remove(); view.classList.remove('hidden'); actions.classList.remove('hidden'); card._msg.textContent = ''; };
+    bSave.onclick = async function () {
+      bSave.disabled = true; bSave.textContent = '저장 중…';
+      try {
+        await callApi({ action: 'editLog', id: log.id, text: ta.value, date: date.value });
+        log.text = ta.value.trim(); log.date = date.value || log.date; log.editedAt = Date.now();
+        var fresh = logCard(log); fresh.open = true;
+        card.replaceWith(fresh);
+        fresh._msg.className = 'msg ok'; fresh._msg.textContent = '고쳤어요. 회원 페이지에도 바로 반영돼요.';
+      } catch (e) {
+        bSave.disabled = false; bSave.textContent = '저장';
+        card._msg.className = 'msg err'; card._msg.textContent = e.message;
+      }
+    };
+  }
+
+  function confirmDelete(card, log, actions) {
+    actions.classList.add('hidden');
+    var row = el('div', 'row confirm');
+    row.appendChild(el('span', '', '이 일지를 지울까요? 회원 페이지에서도 사라져요.'));
+    var bYes = el('button', 'btn danger-fill', '지우기'), bNo = el('button', 'btn ghost', '취소');
+    row.appendChild(bYes); row.appendChild(bNo);
+    card.insertBefore(row, card._msg);
+    bNo.onclick = function () { row.remove(); actions.classList.remove('hidden'); };
+    bYes.onclick = async function () {
+      bYes.disabled = true; bYes.textContent = '지우는 중…';
+      try {
+        await callApi({ action: 'deleteLog', id: log.id });
+        card.remove();
+        msg('logsMsg', log.member + '님 ' + shortLabel(log.date) + ' 일지를 지웠어요.', 'ok');
+      } catch (e) {
+        bYes.disabled = false; bYes.textContent = '지우기';
+        card._msg.className = 'msg err'; card._msg.textContent = e.message;
+      }
+    };
+  }
+
+  // ═════════ 관리 탭: 선생님 ═════════
+  async function loadTeachers() {
+    var list = $('teacherList');
+    list.innerHTML = '<div class="note">불러오는 중…</div>';
+    try {
+      var j = await callApi({ action: 'teachers' });
+      list.innerHTML = '';
+      j.teachers.forEach(function (t) {
+        var row = el('div', 'item' + (t.active ? '' : ' off'));
+        var left = el('div', 'grow');
+        left.appendChild(el('b', '', t.name + (t.me ? ' (나)' : '')));
+        left.appendChild(el('span', 'chip' + (t.role === '관리자' ? ' terra' : ''), t.role));
+        if (!t.active) left.appendChild(el('span', 'chip soft', '사용 중지'));
+        if (!t.hasPin) left.appendChild(el('span', 'chip soft', 'PIN 없음'));
+        row.appendChild(left);
+        var b = el('button', 'btn ghost small', '수정');
+        b.onclick = function () { editTeacher(t); };
+        row.appendChild(b);
+        list.appendChild(row);
+      });
+    } catch (e) {
+      list.innerHTML = '';
+      list.appendChild(el('div', 'msg err', e.message));
+    }
+  }
+
+  function resetTeacherForm() {
+    $('tOriginal').value = ''; $('tName').value = ''; $('tPin').value = '';
+    $('tRole').value = '선생님'; $('tActive').value = '1';
+    $('teacherFormTitle').textContent = '＋ 선생님 추가';
+    $('tPinLabel').textContent = 'PIN (숫자 4~8자리)';
+    $('tPin').placeholder = '선생님마다 다르게';
+  }
+  function editTeacher(t) {
+    $('tOriginal').value = t.name; $('tName').value = t.name; $('tPin').value = '';
+    $('tRole').value = t.role; $('tActive').value = t.active ? '1' : '0';
+    $('teacherFormTitle').textContent = '✏️ ' + t.name + ' 수정';
+    $('tPinLabel').textContent = '새 PIN (바꿀 때만)';
+    $('tPin').placeholder = '비워두면 그대로';
+    msg('tMsg', '');
+    $('teacherFormBox').open = true;
+    $('teacherFormBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  $('tCancelBtn').onclick = function () { resetTeacherForm(); msg('tMsg', ''); $('teacherFormBox').open = false; };
+  $('tSaveBtn').onclick = async function () {
+    var original = $('tOriginal').value, name = $('tName').value.trim(), pin = $('tPin').value.trim();
+    if (!name) { msg('tMsg', '이름을 적어 주세요.', 'err'); return; }
+    if (pin && !/^\d{4,8}$/.test(pin)) { msg('tMsg', 'PIN은 숫자 4~8자리예요.', 'err'); return; }
+    if (!original && !pin) { msg('tMsg', '새 선생님은 PIN이 필요해요.', 'err'); return; }
+    var b = $('tSaveBtn'); b.disabled = true;
+    try {
+      var j = await callApi({ action: 'saveTeacher', original: original, name: name, newPin: pin,
+                              role: $('tRole').value, active: $('tActive').value === '1' });
+      var note = original ? name + ' 선생님 정보를 바꿨어요.' : name + ' 선생님을 추가했어요.';
+      if (pin) note += ' PIN은 선생님께 따로 전달해 주세요.';
+      resetTeacherForm(); $('teacherFormBox').open = false;
+      msg('tMsg', note, 'ok'); $('teacherFormBox').open = true;
+      loadTeachers();
+      if (j.self) {
+        if (pin) store.set('pin', pin);
+        login(store.get('pin'), true);
+      }
+    } catch (e) {
+      msg('tMsg', e.message, 'err');
+    } finally { b.disabled = false; }
+  };
+
+  // ═════════ 관리 탭: 회원 ═════════
+  var sameNameOk = false;
+  $('mName').oninput = function () { sameNameOk = false; };
+  $('mAddBtn').onclick = async function () {
+    var name = $('mName').value.trim();
+    if (!name) { msg('mMsg', '회원 이름을 적어 주세요.', 'err'); return; }
+    var b = $('mAddBtn'); b.disabled = true;
+    try {
+      var j = await callApi({ action: 'addMember', name: name, phone: $('mPhone').value.trim(), allowSameName: sameNameOk });
+      sameNameOk = false;
+      setMembers(j.members);
+      $('mName').value = ''; $('mPhone').value = '';
+      var box = $('mMsg'); box.className = 'msg ok'; box.textContent = j.name + '님을 등록했어요. ';
+      var c = el('button', 'link', '링크 안내 문구 복사');
+      c.onclick = async function () { var ok = await copyText(linkMessage(j.name, j.link || memberLink(j.code))); c.textContent = ok ? '복사했어요 ✓' : '복사 실패 — 회원 목록에서 링크를 길게 눌러 복사'; };
+      box.appendChild(c);
+    } catch (e) {
+      if (e.data && e.data.sameName) sameNameOk = true;
+      msg('mMsg', e.message, 'err');
+    } finally { b.disabled = false; }
+  };
+
+  function renderMemberList() {
+    var list = $('memberList');
+    if (!list) return;
+    list.innerHTML = '';
+    $('memberListTitle').textContent = '회원 목록 · 링크 (' + S.members.length + '명)';
+    S.members.forEach(function (m) {
+      var row = el('div', 'item');
+      row.appendChild(el('b', 'grow', m.name));
+      var b1 = el('button', 'btn ghost small', '열기');
+      b1.onclick = function () { window.open(memberLink(m.code), '_blank'); };
+      var b2 = el('button', 'btn ghost small', '링크 복사');
+      b2.onclick = async function () { var ok = await copyText(linkMessage(m.name, memberLink(m.code))); b2.textContent = ok ? '복사됨 ✓' : '실패'; setTimeout(function () { b2.textContent = '링크 복사'; }, 2000); };
+      row.appendChild(b1); row.appendChild(b2);
+      list.appendChild(row);
+    });
+  }
+
+  // ═════════ 시작 ═════════
+  var saved = store.get('pin');
+  if (saved) { $('loginView').classList.add('hidden'); login(saved, true); }
+  else showLogin();
 })();
 </script>
 </body>
