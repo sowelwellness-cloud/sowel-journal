@@ -122,10 +122,6 @@
     <input id="pinIn" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN (숫자 4~8자리)" maxlength="8">
     <div class="row"><button class="btn terra" id="loginBtn">로그인</button></div>
     <div class="msg" id="loginMsg"></div>
-    <details style="margin-top:12px">
-      <summary style="font-size:13px;color:var(--muted);font-weight:500">고급: 시트 연결 주소</summary>
-      <input id="sApi" type="url" autocomplete="off" placeholder="비워두면 기본 연결을 써요" style="margin-top:8px">
-    </details>
   </section>
 
   <!-- ═════════ 로그인 후 ═════════ -->
@@ -190,7 +186,7 @@
         <div class="debug" id="debug"></div>
       </section>
 
-      <details class="card" id="settingsBox">
+      <details class="card adminOnly" id="settingsBox">
         <summary>⚙️ 고급 설정</summary>
         <p class="note" style="margin-top:8px">보통은 비워두세요. 시트 [설정] 탭에 값이 있으면 시트 값을 먼저 써요.</p>
         <label for="sKey">Gemini API 키 (시트에 키가 없을 때만)</label>
@@ -454,12 +450,10 @@ var SJ = (function () {
   var S = { me: null, center: '', closing: '', apiKey: '', model: '', members: [], teachers: [] };
 
   function apiUrl() {
-    var v = store.get('api') || '';
-    if (!v && window.SOWEL_API && /^https:\/\//.test(window.SOWEL_API)) v = window.SOWEL_API;
-    return v;
+    return (window.SOWEL_API && /^https:\/\//.test(window.SOWEL_API)) ? window.SOWEL_API : '';
   }
-  function apiKey() { return S.apiKey || store.get('key') || ''; }
-  function model() { return S.model || store.get('model') || SJ.DEFAULTS.model; }
+  function apiKey() { return S.apiKey || (isAdmin() ? store.get('key') : '') || ''; }
+  function model() { return S.model || (isAdmin() ? store.get('model') : '') || SJ.DEFAULTS.model; }
   function center() { return S.center || SJ.DEFAULTS.center; }
   function closing() { return S.closing || SJ.DEFAULTS.closing; }
   function isAdmin() { return S.me && S.me.role === '관리자'; }
@@ -512,8 +506,6 @@ var SJ = (function () {
   $('loginBtn').onclick = function () {
     var pin = $('pinIn').value.trim();
     if (!/^\d{4,8}$/.test(pin)) { msg('loginMsg', 'PIN은 숫자 4~8자리예요.', 'err'); return; }
-    var a = $('sApi').value.trim();
-    if (a) store.set('api', a); else store.del('api');
     login(pin);
   };
   $('pinIn').onkeydown = function (e) { if (e.key === 'Enter') $('loginBtn').click(); };
@@ -521,7 +513,6 @@ var SJ = (function () {
   function showLogin() {
     $('appView').classList.add('hidden'); $('who').classList.add('hidden');
     $('loginView').classList.remove('hidden');
-    $('sApi').value = store.get('api') || '';
   }
   function logout(reason) {
     store.del('pin');
@@ -550,7 +541,7 @@ var SJ = (function () {
     $('sModel').value = store.get('model') || '';
     logsLoaded = false;
     showTab(currentTab);
-    if (!apiKey()) { $('settingsBox').open = true; setStatus('시트 [설정] 탭에 Gemini API 키가 없어요. 대표에게 알려 주세요.', 'err'); }
+    if (!apiKey()) { if (isAdmin()) $('settingsBox').open = true; setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err'); }
   }
 
   // ═════════ 탭 ═════════
@@ -628,7 +619,7 @@ var SJ = (function () {
   }
 
   async function startRec() {
-    if (!apiKey()) { $('settingsBox').open = true; setStatus('Gemini API 키가 없어요. 대표에게 시트 [설정] 탭에 넣어 달라고 해주세요.', 'err'); return; }
+    if (!apiKey()) { if (isAdmin()) $('settingsBox').open = true; setStatus('Gemini API 키가 없어요. 대표에게 시트 [설정] 탭에 넣어 달라고 해주세요.', 'err'); return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
       setStatus('이 브라우저에서는 녹음이 안 돼요. 아이폰은 사파리, 안드로이드는 크롬 최신 버전으로 열어 주세요.', 'err');
       return;
@@ -726,7 +717,7 @@ var SJ = (function () {
   function organizeText(txt) {
     txt = String(txt || '').trim();
     if (!txt) { setStatus('내용을 먼저 적어 주세요.', 'err'); return; }
-    if (!apiKey()) { $('settingsBox').open = true; setStatus('Gemini API 키가 없어요. 대표에게 알려 주세요.', 'err'); return; }
+    if (!apiKey()) { if (isAdmin()) $('settingsBox').open = true; setStatus('Gemini API 키가 없어요. 대표에게 알려 주세요.', 'err'); return; }
     setBusy(true);
     debugInfo = '글 입력 · ' + txt.length + '자';
     organize([{ text: '아래는 트레이너의 글 메모입니다. 규칙대로 정리하세요.\n\n' + txt }]);
