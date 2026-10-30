@@ -242,6 +242,8 @@
       <section class="card adminOnly" id="transferSection">
         <h2>담당 이전</h2>
         <p class="note" style="margin-top:0">선생님이 그만두거나 바뀔 때, 그 선생님의 회원을 다른 선생님들에게 나눠 넘겨요. 넘겨받은 선생님은 지난 일지도 이어서 볼 수 있어요.</p>
+        <div class="warn hidden" id="autoBox"><span id="autoText"></span>
+          <div class="row" style="margin-top:8px"><button class="btn ghost" id="autoBtn">일지 쓴 선생님으로 담당 자동 채우기</button></div></div>
         <label for="xFrom">넘겨줄 선생님</label>
         <select id="xFrom"><option value="">선생님을 고르세요</option></select>
         <div class="hidden" id="xBody">
@@ -567,7 +569,8 @@ var SJ = (function () {
   // ═════════ 회원 목록 (기록·일지·관리 공통) ═════════
   function setMembers(list) {
     S.members = (list || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
-    fillSelect($('memberSel'), S.members.length ? '회원을 고르세요' : '등록된 회원이 없어요');
+    var none = isAdmin() ? '등록된 회원이 없어요' : '아직 담당 회원이 없어요 — 대표에게 지정을 요청해 주세요';
+    fillSelect($('memberSel'), S.members.length ? '회원을 고르세요' : none);
     fillSelect($('memberFilter'), '전체 회원');
     renderMemberList();
   }
@@ -919,7 +922,9 @@ var SJ = (function () {
         sel.value = keep;
       }
       renderLogs(j.logs || []);
-      msg('logsMsg', j.total ? j.total + '개 중 ' + Math.min(j.total, (j.logs || []).length) + '개' : (isAdmin() ? '저장된 일지가 없어요.' : '아직 저장한 일지가 없어요.'));
+      var empty = isAdmin() ? '저장된 일지가 없어요.'
+        : (S.members.length ? '내 담당 회원의 일지가 아직 없어요.' : '아직 담당 회원이 없어요. 대표에게 담당 지정을 요청해 주세요. 지정되면 그 회원의 지난 일지도 여기에 보여요.');
+      msg('logsMsg', j.total ? j.total + '개 중 ' + Math.min(j.total, (j.logs || []).length) + '개' : empty);
       $('moreRow').classList.toggle('hidden', !(j.total > (j.logs || []).length));
     } catch (e) {
       msg('logsMsg', e.message, 'err');
@@ -1109,6 +1114,8 @@ var SJ = (function () {
       var o = el('option', '', t.name + ' — 회원 ' + t.members + '명' + (t.active ? '' : ' (사용 중지)')); o.value = t.name; sel.appendChild(o);
     });
     if (noTrainer) { var o2 = el('option', '', '담당 없는 회원 — ' + noTrainer + '명'); o2.value = NO_TRAINER; sel.appendChild(o2); }
+    $('autoBox').classList.toggle('hidden', !noTrainer);
+    $('autoText').textContent = '담당이 없는 회원이 ' + noTrainer + '명 있어요. 담당이 없으면 선생님 화면에 그 회원과 일지가 보이지 않아요.';
     sel.value = keep;
     if (!sel.value) $('xBody').classList.add('hidden'); else showTransfer();
   }
@@ -1143,6 +1150,18 @@ var SJ = (function () {
     if (!list.length) box.appendChild(el('div', 'note', '넘길 회원이 없어요.'));
   }
   $('xFrom').onchange = showTransfer;
+  $('autoBtn').onclick = async function () {
+    var b = $('autoBtn'); b.disabled = true;
+    try {
+      var j = await callApi({ action: 'autoAssign' });
+      setMembers(j.members);
+      await loadTeachers();
+      var t = j.assigned.length ? '담당을 채웠어요: ' + j.assigned.join(', ') + '.' : '일지 기록으로 채울 수 있는 회원이 없었어요.';
+      if (j.left.length) t += '\n일지가 없어 남은 회원: ' + j.left.join(', ') + ' — 아래 회원 목록에서 직접 지정해 주세요.';
+      msg('xMsg', t, 'ok');
+    } catch (e) { msg('xMsg', e.message, 'err'); }
+    finally { b.disabled = false; }
+  };
   $('xAll').onchange = function () {
     Array.prototype.forEach.call(document.querySelectorAll('.xTo'), function (s) { s.value = $('xAll').value; });
   };
