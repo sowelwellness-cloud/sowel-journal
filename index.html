@@ -103,6 +103,9 @@
   .grow{flex:1;min-width:0}
   .logcard .row .btn{white-space:nowrap;padding:10px 8px}
   .grid2>.hidden+div{grid-column:1/-1}
+  .list select.mini{width:auto;flex:0 0 auto;font-size:13px;padding:6px 26px 6px 8px;background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%}
+  .list .item .sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
+  .warn{background:#FFF4E5;border:1px solid #F3C98B;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px}
 </style>
 </head>
 <body>
@@ -213,7 +216,7 @@
 
     <!-- ───── 관리 (관리자) ───── -->
     <div class="hidden" id="tab-admin">
-      <section class="card">
+      <section class="card adminOnly" id="teacherSection">
         <h2>선생님</h2>
         <div id="teacherList" class="list"></div>
         <details id="teacherFormBox" style="margin-top:12px">
@@ -236,16 +239,35 @@
         </details>
       </section>
 
+      <section class="card adminOnly" id="transferSection">
+        <h2>담당 이전</h2>
+        <p class="note" style="margin-top:0">선생님이 그만두거나 바뀔 때, 그 선생님의 회원을 다른 선생님들에게 나눠 넘겨요. 넘겨받은 선생님은 지난 일지도 이어서 볼 수 있어요.</p>
+        <label for="xFrom">넘겨줄 선생님</label>
+        <select id="xFrom"><option value="">선생님을 고르세요</option></select>
+        <div class="hidden" id="xBody">
+          <div class="grid2" style="margin-top:12px">
+            <div style="grid-column:1/-1"><label for="xAll" style="margin-top:0">한꺼번에 넘기기</label>
+              <select id="xAll"><option value="">회원별로 고를게요</option></select></div>
+          </div>
+          <div id="xList" class="list" style="margin-top:8px"></div>
+          <div class="row"><button class="btn terra" id="xApply">담당 이전하기</button></div>
+        </div>
+        <div class="msg" id="xMsg"></div>
+      </section>
+
       <section class="card">
-        <h2>회원</h2>
+        <h2 id="memberSectionTitle">회원</h2>
         <div class="grid2">
           <div><label for="mName" style="margin-top:0">이름</label><input id="mName" type="text" maxlength="30"></div>
           <div><label for="mPhone" style="margin-top:0">연락처 (선택)</label><input id="mPhone" type="tel" maxlength="20"></div>
         </div>
+        <label for="mTrainer">담당 선생님</label>
+        <select id="mTrainer"><option value="">담당 없음</option></select>
+        <p class="note hidden" id="mTrainerNote">담당은 본인으로 정해져요. 바꾸려면 대표에게 요청해 주세요.</p>
         <div class="row"><button class="btn terra" id="mAddBtn">회원 등록</button></div>
         <div class="msg" id="mMsg"></div>
         <details style="margin-top:12px">
-          <summary style="font-size:14px" id="memberListTitle">회원 목록 · 링크</summary>
+          <summary style="font-size:14px" id="memberListTitle">회원 목록 · 담당 · 링크</summary>
           <div id="memberList" class="list" style="margin-top:8px"></div>
         </details>
       </section>
@@ -427,7 +449,7 @@ var SJ = (function () {
   var mem = {};
 
   /** 로그인하면 시트에서 받아오는 값 */
-  var S = { me: null, center: '', closing: '', apiKey: '', model: '', members: [] };
+  var S = { me: null, center: '', closing: '', apiKey: '', model: '', members: [], teachers: [] };
 
   function apiUrl() {
     var v = store.get('api') || '';
@@ -513,7 +535,13 @@ var SJ = (function () {
     $('appView').classList.remove('hidden');
     $('who').classList.remove('hidden');
     $('whoName').textContent = S.me.name + (isAdmin() ? ' · 관리자' : ' 선생님');
-    $('adminTabBtn').classList.toggle('hidden', !isAdmin());
+    $('adminTabBtn').classList.remove('hidden');
+    $('adminTabBtn').textContent = isAdmin() ? '관리' : '회원';
+    Array.prototype.forEach.call(document.querySelectorAll('.adminOnly'), function (x) { x.classList.toggle('hidden', !isAdmin()); });
+    $('memberSectionTitle').textContent = isAdmin() ? '회원' : '내 회원';
+    $('mTrainerNote').classList.toggle('hidden', isAdmin());
+    if (!isAdmin()) { S.teachers = [{ name: S.me.name, active: true }]; fillTrainerSelect($('mTrainer'), S.me.name); $('mTrainer').disabled = true; }
+    else $('mTrainer').disabled = false;
     $('logsTabBtn').textContent = isAdmin() ? '일지' : '내 일지';
     $('trainerFilterBox').classList.toggle('hidden', !isAdmin());
     $('sKey').value = store.get('key') || '';
@@ -526,12 +554,11 @@ var SJ = (function () {
   // ═════════ 탭 ═════════
   var currentTab = 'record';
   function showTab(name) {
-    if (name === 'admin' && !isAdmin()) name = 'record';
     currentTab = name;
     ['record', 'logs', 'admin'].forEach(function (t) { $('tab-' + t).classList.toggle('hidden', t !== name); });
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) { b.classList.toggle('on', b.dataset.tab === name); });
     if (name === 'logs' && !logsLoaded) loadLogs();
-    if (name === 'admin') loadTeachers();
+    if (name === 'admin') { if (isAdmin()) loadTeachers(); else renderMemberList(); }
   }
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
     b.onclick = function () { showTab(b.dataset.tab); };
@@ -540,7 +567,7 @@ var SJ = (function () {
   // ═════════ 회원 목록 (기록·일지·관리 공통) ═════════
   function setMembers(list) {
     S.members = (list || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
-    fillSelect($('memberSel'), S.members.length ? '회원을 고르세요 (' + S.members.length + '명)' : '등록된 회원이 없어요');
+    fillSelect($('memberSel'), S.members.length ? '회원을 고르세요' : '등록된 회원이 없어요');
     fillSelect($('memberFilter'), '전체 회원');
     renderMemberList();
   }
@@ -548,7 +575,21 @@ var SJ = (function () {
     var keep = sel.value;
     sel.innerHTML = '';
     var o = el('option', '', firstLabel); o.value = ''; sel.appendChild(o);
-    S.members.forEach(function (m) { var x = el('option', '', m.name); x.value = m.code; sel.appendChild(x); });
+    var meName = S.me ? S.me.name : '';
+    var mine = S.members.filter(function (m) { return m.trainer === meName; });
+    var others = S.members.filter(function (m) { return m.trainer !== meName; });
+    function add(parent, m, showTrainer) {
+      var x = el('option', '', m.name + (showTrainer && m.trainer ? ' · ' + m.trainer : ''));
+      x.value = m.code; parent.appendChild(x);
+    }
+    if (mine.length && others.length) {
+      var g1 = el('optgroup'); g1.label = '내 담당 회원 (' + mine.length + ')';
+      mine.forEach(function (m) { add(g1, m, false); }); sel.appendChild(g1);
+      var g2 = el('optgroup'); g2.label = '다른 회원 (' + others.length + ')';
+      others.forEach(function (m) { add(g2, m, true); }); sel.appendChild(g2);
+    } else {
+      S.members.forEach(function (m) { add(sel, m, m.trainer && m.trainer !== meName); });
+    }
     if (keep) sel.value = keep;
   }
 
@@ -902,7 +943,8 @@ var SJ = (function () {
     var top = el('div', 'loghead');
     top.appendChild(el('b', '', shortLabel(log.date)));
     top.appendChild(el('span', '', log.member));
-    if (isAdmin()) top.appendChild(el('span', 'chip', log.trainer || '담당 없음'));
+    if (isAdmin()) top.appendChild(el('span', 'chip', log.trainer || '작성자 없음'));
+    else if (log.trainer !== S.me.name) top.appendChild(el('span', 'chip soft', '작성 · ' + (log.trainer || '?')));
     if (log.editedAt) top.appendChild(el('span', 'chip soft', '수정됨'));
     sum.appendChild(top);
     var body = String(log.text || '').split('\n').filter(function (l) { return /^- /.test(l); }).map(function (l) { return l.slice(2).split(/\s\d/)[0]; });
@@ -984,6 +1026,12 @@ var SJ = (function () {
     list.innerHTML = '<div class="note">불러오는 중…</div>';
     try {
       var j = await callApi({ action: 'teachers' });
+      S.teachers = j.teachers || [];
+      var keepT = $('mTrainer').value;
+      if (!S.teachers.some(function (t) { return t.name === keepT && t.active; })) keepT = '';
+      fillTrainerSelect($('mTrainer'), keepT);
+      renderMemberList();
+      fillTransferFrom(j.noTrainer || 0);
       list.innerHTML = '';
       j.teachers.forEach(function (t) {
         var row = el('div', 'item' + (t.active ? '' : ' off'));
@@ -992,6 +1040,7 @@ var SJ = (function () {
         left.appendChild(el('span', 'chip' + (t.role === '관리자' ? ' terra' : ''), t.role));
         if (!t.active) left.appendChild(el('span', 'chip soft', '사용 중지'));
         if (!t.hasPin) left.appendChild(el('span', 'chip soft', 'PIN 없음'));
+        left.appendChild(el('span', 'sub', '담당 회원 ' + t.members + '명' + (!t.active && t.members ? ' — 담당 이전이 필요해요' : '')));
         row.appendChild(left);
         var b = el('button', 'btn ghost small', '수정');
         b.onclick = function () { editTeacher(t); };
@@ -1035,7 +1084,12 @@ var SJ = (function () {
       if (pin) note += ' PIN은 선생님께 따로 전달해 주세요.';
       resetTeacherForm(); $('teacherFormBox').open = false;
       msg('tMsg', note, 'ok'); $('teacherFormBox').open = true;
-      loadTeachers();
+      await loadTeachers();
+      if (j.membersLeft) {
+        msg('tMsg', note + '\n' + name + ' 선생님 담당 회원 ' + j.membersLeft + '명을 아래 [담당 이전]에서 넘겨 주세요.', 'ok');
+        $('xFrom').value = name; showTransfer();
+        $('transferSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
       if (j.self) {
         if (pin) store.set('pin', pin);
         login(store.get('pin'), true);
@@ -1045,7 +1099,83 @@ var SJ = (function () {
     } finally { b.disabled = false; }
   };
 
+  // ═════════ 관리 탭: 담당 이전 ═════════
+  var NO_TRAINER = '__none__';
+  function fillTransferFrom(noTrainer) {
+    var sel = $('xFrom'), keep = sel.value;
+    sel.innerHTML = '<option value="">선생님을 고르세요</option>';
+    S.teachers.forEach(function (t) {
+      if (!t.members) return;
+      var o = el('option', '', t.name + ' — 회원 ' + t.members + '명' + (t.active ? '' : ' (사용 중지)')); o.value = t.name; sel.appendChild(o);
+    });
+    if (noTrainer) { var o2 = el('option', '', '담당 없는 회원 — ' + noTrainer + '명'); o2.value = NO_TRAINER; sel.appendChild(o2); }
+    sel.value = keep;
+    if (!sel.value) $('xBody').classList.add('hidden'); else showTransfer();
+  }
+  function activeTargets(exclude) {
+    return S.teachers.filter(function (t) { return t.active && t.name !== exclude; });
+  }
+  function fillTargets(sel, exclude, first) {
+    sel.innerHTML = '';
+    var o = el('option', '', first); o.value = ''; sel.appendChild(o);
+    activeTargets(exclude).forEach(function (t) { var x = el('option', '', t.name + ' (현재 ' + t.members + '명)'); x.value = t.name; sel.appendChild(x); });
+  }
+  function showTransfer() {
+    var from = $('xFrom').value;
+    msg('xMsg', '');
+    if (!from) { $('xBody').classList.add('hidden'); return; }
+    var list = S.members.filter(function (m) {
+      if (from === NO_TRAINER) return !m.trainer || !S.teachers.some(function (t) { return t.name === m.trainer; });
+      return m.trainer === from;
+    });
+    $('xBody').classList.remove('hidden');
+    fillTargets($('xAll'), from, '회원별로 고를게요');
+    var box = $('xList'); box.innerHTML = '';
+    if (!activeTargets(from).length) { box.appendChild(el('div', 'warn', '넘겨받을 선생님이 없어요. 먼저 새 선생님을 추가해 주세요.')); }
+    list.forEach(function (m) {
+      var row = el('div', 'item');
+      row.appendChild(el('b', 'grow', m.name));
+      var ts = el('select', 'mini xTo'); ts.dataset.code = m.code; ts.setAttribute('aria-label', m.name + ' 새 담당');
+      fillTargets(ts, from, '그대로');
+      row.appendChild(ts);
+      box.appendChild(row);
+    });
+    if (!list.length) box.appendChild(el('div', 'note', '넘길 회원이 없어요.'));
+  }
+  $('xFrom').onchange = showTransfer;
+  $('xAll').onchange = function () {
+    Array.prototype.forEach.call(document.querySelectorAll('.xTo'), function (s) { s.value = $('xAll').value; });
+  };
+  $('xApply').onclick = async function () {
+    var moves = [];
+    Array.prototype.forEach.call(document.querySelectorAll('.xTo'), function (s) { if (s.value) moves.push({ code: s.dataset.code, trainer: s.value }); });
+    if (!moves.length) { msg('xMsg', '새 담당을 고른 회원이 없어요.', 'err'); return; }
+    var b = $('xApply'); b.disabled = true;
+    try {
+      var j = await callApi({ action: 'transferMembers', moves: moves });
+      setMembers(j.members);
+      var summary = {};
+      moves.forEach(function (mv) { summary[mv.trainer] = (summary[mv.trainer] || 0) + 1; });
+      var text = Object.keys(summary).map(function (k) { return k + ' ' + summary[k] + '명'; }).join(', ');
+      await loadTeachers();
+      msg('xMsg', '회원 ' + j.moved + '명을 넘겼어요 (' + text + ').' + (j.failed ? ' ' + j.failed + '명은 실패했어요.' : ''), j.failed ? 'err' : 'ok');
+    } catch (e) { msg('xMsg', e.message, 'err'); }
+    finally { b.disabled = false; }
+  };
+
   // ═════════ 관리 탭: 회원 ═════════
+  function fillTrainerSelect(sel, value) {
+    sel.innerHTML = '';
+    if (isAdmin()) { var o = el('option', '', '담당 없음'); o.value = ''; sel.appendChild(o); }
+    S.teachers.forEach(function (t) {
+      if (!t.active && t.name !== value) return;
+      var x = el('option', '', t.name + (t.active ? '' : ' (사용 중지)')); x.value = t.name; sel.appendChild(x);
+    });
+    if (value && !S.teachers.some(function (t) { return t.name === value; })) {
+      var y = el('option', '', value + ' (목록에 없음)'); y.value = value; sel.appendChild(y);
+    }
+    sel.value = value || '';
+  }
   var sameNameOk = false;
   $('mName').oninput = function () { sameNameOk = false; };
   $('mAddBtn').onclick = async function () {
@@ -1053,11 +1183,12 @@ var SJ = (function () {
     if (!name) { msg('mMsg', '회원 이름을 적어 주세요.', 'err'); return; }
     var b = $('mAddBtn'); b.disabled = true;
     try {
-      var j = await callApi({ action: 'addMember', name: name, phone: $('mPhone').value.trim(), allowSameName: sameNameOk });
+      var j = await callApi({ action: 'addMember', name: name, phone: $('mPhone').value.trim(), trainer: $('mTrainer').value, allowSameName: sameNameOk });
       sameNameOk = false;
       setMembers(j.members);
       $('mName').value = ''; $('mPhone').value = '';
-      var box = $('mMsg'); box.className = 'msg ok'; box.textContent = j.name + '님을 등록했어요. ';
+      if (!isAdmin()) fillTrainerSelect($('mTrainer'), S.me.name); else loadTeachers();
+      var box = $('mMsg'); box.className = 'msg ok'; box.textContent = j.name + '님을 등록했어요' + (j.trainer ? ' (담당 ' + j.trainer + ')' : '') + '. ';
       var c = el('button', 'link', '링크 안내 문구 복사');
       c.onclick = async function () { var ok = await copyText(linkMessage(j.name, j.link || memberLink(j.code))); c.textContent = ok ? '복사했어요 ✓' : '복사 실패 — 회원 목록에서 링크를 길게 눌러 복사'; };
       box.appendChild(c);
@@ -1071,10 +1202,26 @@ var SJ = (function () {
     var list = $('memberList');
     if (!list) return;
     list.innerHTML = '';
-    $('memberListTitle').textContent = '회원 목록 · 링크 (' + S.members.length + '명)';
+    $('memberListTitle').textContent = (isAdmin() ? '회원 목록 · 담당 · 링크 (' : '내 회원 · 링크 (') + S.members.length + '명)';
+    var noTrainer = S.members.filter(function (m) { return !m.trainer; }).length;
+    if (isAdmin() && noTrainer) $('memberListTitle').textContent += ' — 담당 없음 ' + noTrainer + '명';
     S.members.forEach(function (m) {
       var row = el('div', 'item');
       row.appendChild(el('b', 'grow', m.name));
+      if (isAdmin()) {
+        var ts = el('select', 'mini'); ts.setAttribute('aria-label', m.name + ' 담당');
+        fillTrainerSelect(ts, m.trainer);
+        ts.onchange = async function () {
+          ts.disabled = true;
+          try {
+            var j = await callApi({ action: 'updateMember', code: m.code, trainer: ts.value });
+            setMembers(j.members); loadTeachers();
+            msg('mMsg', m.name + '님 담당을 ' + (ts.value || '없음') + '(으)로 바꿨어요.', 'ok');
+          } catch (e) { msg('mMsg', e.message, 'err'); ts.value = m.trainer || ''; }
+          finally { ts.disabled = false; }
+        };
+        row.appendChild(ts);
+      }
       var b1 = el('button', 'btn ghost small', '열기');
       b1.onclick = function () { window.open(memberLink(m.code), '_blank'); };
       var b2 = el('button', 'btn ghost small', '링크 복사');

@@ -65,6 +65,7 @@
     <div class="stats">
       <div class="stat"><b id="count">0</b><span>기록된 수업</span></div>
       <div class="stat"><b id="since">-</b><span>첫 기록</span></div>
+      <div class="stat hidden" id="trainerStat"><b id="trainer">-</b><span>담당 선생님</span></div>
     </div>
   </section>
 
@@ -117,7 +118,7 @@
     var d = el('div', 'date', label(log.date));
     if (isNew) d.appendChild(el('span', 'new', 'NEW'));
     h.appendChild(d);
-    if (log.trainer) h.appendChild(el('span', 'chip', '담당 ' + log.trainer));
+    if (log.trainer) h.appendChild(el('span', 'chip', log.trainer + ' 선생님'));
     return h;
   }
   function fail(msg) {
@@ -184,6 +185,7 @@
       if (j.center) $('center').textContent = j.center;
       $('title').textContent = j.name + '님의 수업일지';
       $('count').textContent = j.count;
+      if (j.trainer) { $('trainer').textContent = j.trainer; $('trainerStat').classList.remove('hidden'); }
       var logs = j.logs || [];
       $('since').textContent = logs.length ? shortDate(logs[logs.length - 1].date) : '-';
       $('hero').classList.remove('hidden');
