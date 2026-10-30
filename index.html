@@ -155,7 +155,7 @@
 <script id="core">
 var SJ = (function () {
   var DEFAULTS = {
-    model: 'gemini-3.8-flash',
+    model: 'gemini-3.5-flash-lite',
     trainer: '',
     pin: '',
     api: '',
@@ -486,7 +486,7 @@ var SJ = (function () {
 
   // ── AI 호출 (자동 재시도 + 예비 모델) ──
   var lastData = null, debugInfo = '', lastParts = null;
-  var FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  var FALLBACK_MODELS = ['gemini-3.5-flash-lite'];
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
   var CALL_TIMEOUT = 40000, TOTAL_LIMIT = 100000;
@@ -547,7 +547,13 @@ var SJ = (function () {
           lastErr = SJ.friendlyError(res.status, res.body);
           var busy = res.status === 429 || res.status >= 500;
           if (busy && attempt < 1) { await wait(2000); continue; }
-          if (busy || res.status === 404) break;   // 다음 예비 모델로
+          if (res.status === 404 || res.status === 400) {
+            // "더 이상 제공 안 함, models/○○○를 쓰세요" 안내가 오면 그 모델을 예비 목록에 추가
+            var sug = /models\/([a-z0-9][a-z0-9.\-]*[a-z0-9])/ig, mm, emsg = (res.body && res.body.error && res.body.error.message) || '';
+            while ((mm = sug.exec(emsg))) { if (models.indexOf(mm[1]) < 0) models.splice(mi + 1, 0, mm[1]); }
+            if (res.status === 404 || models.length > mi + 1 && /no longer|deprecat|not found|not supported/i.test(emsg)) break;
+          }
+          if (busy) break;                           // 다음 예비 모델로
           throw new Error(lastErr);                 // 키·권한 문제는 바로 알려줌
         }
       }
