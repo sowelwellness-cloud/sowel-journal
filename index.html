@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
+<meta name="sowel-version" content="0.7.0">
 <title>소웰 수업일지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -101,6 +102,9 @@
   .list .item:last-child{border-bottom:0}
   .list .item.off{opacity:.55}
   .grow{flex:1;min-width:0}
+  .ver{text-align:center;font-size:11px;color:#B0A699;margin-top:24px}
+  .updbar{position:fixed;left:12px;right:12px;bottom:12px;max-width:496px;margin:0 auto;background:var(--brown);color:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:9}
+  .updbar button{margin-left:auto;background:var(--terra);color:#fff;border:0;border-radius:8px;padding:8px 12px;font:inherit;font-weight:700}
   .logcard .row .btn{white-space:nowrap;padding:10px 8px}
   .grid2>.hidden+div{grid-column:1/-1}
   .list select.mini{width:auto;flex:0 0 auto;font-size:13px;padding:6px 26px 6px 8px;background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%}
@@ -272,6 +276,46 @@
     </div>
   </div>
 </div>
+
+<div class="ver" id="verLabel"></div>
+<div class="updbar hidden" id="updBar"><span>새 버전이 있어요. 저장을 마친 뒤 새로고침해 주세요.</span><button id="updBtn">새로고침</button></div>
+<script>
+/* ───── 자동 업데이트: 올라온 파일의 버전이 다르면 같은 주소로 새로 열기 ───── */
+var SOWEL_UPD = (function () {
+  var me = (document.querySelector('meta[name="sowel-version"]') || {}).content || '';
+  function fresh() {
+    return fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (t) { var m = /name="sowel-version" content="([^"]+)"/.exec(t); return m ? m[1] : ''; })
+      .catch(function () { return ''; });
+  }
+  function reloadTo(v) {
+    var u = new URL(location.href);
+    if (u.searchParams.get('u') === v) return false;   // 이미 시도함 → 반복 방지
+    u.searchParams.set('u', v);
+    u.searchParams.delete('v');
+    location.replace(u.toString());
+    return true;
+  }
+  /** busy(): 지금 바꾸면 안 되는 상황이면 true → onWait(v) 호출 */
+  function watch(busy, onWait) {
+    var last = 0;
+    function check() {
+      if (Date.now() - last < 60000) return;
+      last = Date.now();
+      fresh().then(function (v) {
+        if (!v || v === me) return;
+        if (busy && busy()) { if (onWait) onWait(v); return; }
+        reloadTo(v);
+      });
+    }
+    check();
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
+    window.addEventListener('focus', check);
+  }
+  return { version: me, watch: watch, reloadTo: reloadTo };
+})();
+</script>
 
 <!-- ───────── 핵심 로직 (화면과 분리) ───────── -->
 <script id="core">
@@ -1242,6 +1286,16 @@ var SJ = (function () {
   }
 
   // ═════════ 시작 ═════════
+  $('verLabel').textContent = 'SOWEL 수업일지 v' + SOWEL_UPD.version;
+  var pendingVer = '';
+  SOWEL_UPD.watch(function () {
+    var recording = rec && rec.state === 'recording';
+    var unsaved = !$('resultBox').classList.contains('hidden') && $('saveLogBtn').textContent !== '저장 완료' && $('result').value.trim();
+    var editing = !!document.querySelector('.editbox');
+    return recording || unsaved || editing || $('recBtn').disabled;
+  }, function (v) { pendingVer = v; $('updBar').classList.remove('hidden'); });
+  $('updBtn').onclick = function () { if (!SOWEL_UPD.reloadTo(pendingVer)) location.reload(); };
+
   var saved = store.get('pin');
   if (saved) { $('loginView').classList.add('hidden'); login(saved, true); }
   else showLogin();
