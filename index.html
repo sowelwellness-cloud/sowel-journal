@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.7.0">
+<meta name="sowel-version" content="0.8.1">
 <title>소웰 수업일지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -102,6 +102,15 @@
   .list .item:last-child{border-bottom:0}
   .list .item.off{opacity:.55}
   .grow{flex:1;min-width:0}
+  .pinrow{display:flex;gap:8px}
+  .pinrow input{flex:1}
+  .pinrow .btn{flex:0 0 auto;padding:10px 14px}
+  .chip.red{background:var(--err);color:#fff}
+  .joincodeX{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#EFE6D8;border-radius:10px;padding:10px 12px;margin-bottom:6px;font-size:14px}
+  .joincode b{font-size:18px;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+  .joincode span{color:var(--muted)}
+  .joincode .btn:first-of-type{margin-left:auto}
+  .tab .dot{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:var(--terra);color:#fff;font-size:11px;line-height:18px;margin-left:4px;padding:0 5px;vertical-align:1px}
   .ver{text-align:center;font-size:11px;color:#B0A699;margin-top:24px}
   .updbar{position:fixed;left:12px;right:12px;bottom:12px;max-width:496px;margin:0 auto;background:var(--brown);color:#fff;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:9}
   .updbar button{margin-left:auto;background:var(--terra);color:#fff;border:0;border-radius:8px;padding:8px 12px;font:inherit;font-weight:700}
@@ -122,10 +131,66 @@
   <!-- ═════════ 로그인 ═════════ -->
   <section class="card" id="loginView">
     <h2>선생님 로그인</h2>
-    <p class="note" style="margin-top:0">대표에게 받은 개인 PIN을 넣어 주세요. 이 폰에서는 한 번만 넣으면 돼요.</p>
-    <input id="pinIn" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN (숫자 4~8자리)" maxlength="8">
+    <label for="idIn" style="margin-top:4px">아이디</label>
+    <input id="idIn" type="text" autocomplete="username" autocapitalize="none" spellcheck="false">
+    <label for="pwIn">비밀번호</label>
+    <input id="pwIn" type="password" autocomplete="current-password">
     <div class="row"><button class="btn terra" id="loginBtn">로그인</button></div>
     <div class="msg" id="loginMsg"></div>
+    <p class="note" style="text-align:center;margin-top:16px">새로 오신 선생님이세요? <button class="link" id="toSignup">선생님 가입하기</button></p>
+    <details style="margin-top:8px" id="pinBox">
+      <summary style="font-size:13px;color:var(--muted);font-weight:500">아직 아이디가 없어요 (예전 PIN으로 로그인)</summary>
+      <input id="pinIn" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN (숫자 4~8자리)" maxlength="8" style="margin-top:8px">
+      <div class="row"><button class="btn ghost" id="pinLoginBtn">PIN으로 로그인</button></div>
+      <p class="note">PIN으로 들어가면 아이디·비밀번호를 만들게 돼요. 만든 뒤에는 PIN은 사라져요.</p>
+    </details>
+  </section>
+
+  <!-- ═════════ 선생님 가입 ═════════ -->
+  <section class="card hidden" id="signupView">
+    <h2>선생님 가입</h2>
+    <p class="note" style="margin-top:0">가입하면 대표가 승인한 뒤부터 로그인할 수 있어요.</p>
+    <label for="jId">아이디</label>
+    <div class="pinrow">
+      <input id="jId" type="text" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="영어 소문자로 시작, 4~20자">
+      <button class="btn ghost" id="jCheck" type="button">중복 확인</button>
+    </div>
+    <div class="msg" id="jIdMsg"></div>
+    <label for="jPw">비밀번호</label>
+    <input id="jPw" type="password" autocomplete="new-password" placeholder="영어+숫자 6자 이상">
+    <div class="msg" id="jPwMsg"></div>
+    <label for="jPw2">비밀번호 한 번 더</label>
+    <input id="jPw2" type="password" autocomplete="new-password">
+    <div class="msg" id="jPw2Msg"></div>
+    <label for="jName">이름</label>
+    <input id="jName" type="text" maxlength="20" autocomplete="name" placeholder="일지에 '담당 ○○○'으로 들어가요">
+    <label for="jPhone">휴대폰 번호</label>
+    <input id="jPhone" type="tel" maxlength="13" autocomplete="tel" placeholder="010-1234-5678">
+    <label for="jBirth">생년월일</label>
+    <input id="jBirth" type="date" min="1940-01-01">
+    <div class="row"><button class="btn terra" id="jSubmit" disabled>가입하기</button></div>
+    <div class="msg" id="jMsg"></div>
+    <p class="note" style="text-align:center;margin-top:12px"><button class="link" id="toLogin">로그인으로 돌아가기</button></p>
+  </section>
+
+  <!-- ═════════ 예전 PIN 계정 → 아이디 만들기 ═════════ -->
+  <section class="card hidden" id="accountView">
+    <h2>아이디·비밀번호 만들기</h2>
+    <p class="note" style="margin-top:0"><b id="accName"></b>님, 앞으로는 PIN 대신 아이디와 비밀번호로 로그인해요. 한 번만 만들면 돼요.</p>
+    <label for="aId">아이디</label>
+    <div class="pinrow">
+      <input id="aId" type="text" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="영어 소문자로 시작, 4~20자">
+      <button class="btn ghost" id="aCheck" type="button">중복 확인</button>
+    </div>
+    <div class="msg" id="aIdMsg"></div>
+    <label for="aPw">비밀번호</label>
+    <input id="aPw" type="password" autocomplete="new-password" placeholder="영어+숫자 6자 이상">
+    <div class="msg" id="aPwMsg"></div>
+    <label for="aPw2">비밀번호 한 번 더</label>
+    <input id="aPw2" type="password" autocomplete="new-password">
+    <div class="msg" id="aPw2Msg"></div>
+    <div class="row"><button class="btn terra" id="aSubmit" disabled>만들기</button></div>
+    <div class="msg" id="aMsg"></div>
   </section>
 
   <!-- ═════════ 로그인 후 ═════════ -->
@@ -216,16 +281,26 @@
 
     <!-- ───── 관리 (관리자) ───── -->
     <div class="hidden" id="tab-admin">
+      <section class="card adminOnly hidden" id="pendingSection">
+        <h2>가입 요청 <span class="chip terra" id="pendingCount">0</span></h2>
+        <div id="pendingList" class="list"></div>
+        <div class="msg" id="pMsg"></div>
+      </section>
+
       <section class="card adminOnly" id="teacherSection">
         <h2>선생님</h2>
+        <p class="note" style="margin-top:0">새 선생님은 로그인 화면의 [선생님 가입하기]로 직접 가입하고, 위 [가입 요청]에서 승인하면 돼요. <button class="link" id="joinCopy">가입 안내 문구 복사</button></p>
         <div id="teacherList" class="list"></div>
         <details id="teacherFormBox" style="margin-top:12px">
           <summary id="teacherFormTitle" style="font-size:14px">＋ 선생님 추가</summary>
           <input type="hidden" id="tOriginal">
           <label for="tName">이름</label>
           <input id="tName" type="text" maxlength="20" placeholder="예: 권경준">
-          <label for="tPin" id="tPinLabel">PIN (숫자 4~8자리)</label>
-          <input id="tPin" type="text" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="선생님마다 다르게">
+          <div id="tIdBox"><label for="tId">아이디</label>
+          <input id="tId" type="text" maxlength="20" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="영어 소문자로 시작, 4~20자"></div>
+          <label for="tPw" id="tPwLabel">임시 비밀번호</label>
+          <input id="tPw" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="영어+숫자 6자 이상">
+          <p class="note" id="tPwNote">선생님께 아이디와 임시 비밀번호를 알려 주고, 로그인 후 [내 계정]에서 바꾸게 해 주세요.</p>
           <div class="grid2" style="margin-top:12px">
             <div><label for="tRole" style="margin-top:0">권한</label><select id="tRole"><option>선생님</option><option>관리자</option></select></div>
             <div><label for="tActive" style="margin-top:0">사용</label><select id="tActive"><option value="1">사용</option><option value="0">사용 중지</option></select></div>
@@ -271,6 +346,23 @@
         <details style="margin-top:12px">
           <summary style="font-size:14px" id="memberListTitle">회원 목록 · 담당 · 링크</summary>
           <div id="memberList" class="list" style="margin-top:8px"></div>
+        </details>
+      </section>
+
+      <section class="card" id="mySection">
+        <h2>내 계정</h2>
+        <p class="note" style="margin-top:0">아이디: <b id="myId">-</b></p>
+        <details id="pwBox">
+          <summary style="font-size:14px">비밀번호 바꾸기</summary>
+          <label for="cOld">지금 비밀번호</label>
+          <input id="cOld" type="password" autocomplete="current-password">
+          <label for="cNew">새 비밀번호</label>
+          <input id="cNew" type="password" autocomplete="new-password" placeholder="영어+숫자 6자 이상">
+          <label for="cNew2">새 비밀번호 한 번 더</label>
+          <input id="cNew2" type="password" autocomplete="new-password">
+          <div class="row"><button class="btn terra" id="cSave">바꾸기</button></div>
+          <div class="msg" id="cMsg"></div>
+          <p class="note">바꾸면 다른 폰에서 로그인한 것은 자동으로 풀려요.</p>
         </details>
       </section>
     </div>
@@ -516,7 +608,7 @@ var SJ = (function () {
   async function callApi(body, opt) {
     var url = apiUrl();
     if (!url) throw new Error('시트 연결 주소가 없어요. config.js를 확인해 주세요.');
-    if (!(opt && opt.noPin)) body.pin = store.get('pin') || '';
+    if (!(opt && opt.noPin)) { var tk = store.get('token'); if (tk) body.token = tk; else body.pin = store.get('pin') || ''; }
     var r;
     try {
       r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
@@ -530,51 +622,74 @@ var SJ = (function () {
   }
 
   // ═════════ 로그인 ═════════
-  async function login(pin, silent) {
-    $('loginBtn').disabled = true;
-    msg('loginMsg', silent ? '로그인 중…' : '확인 중…');
+  function applyLogin(j) {
+    if (j.token) { store.set('token', j.token); store.del('pin'); }
+    S.me = j.me; S.center = j.center; S.closing = j.closing; S.apiKey = j.apiKey; S.model = j.model; S.pending = j.pending || 0;
+    setMembers(j.members || []);
+    if (j.needAccount) { showAccountSetup(); return; }
+    enterApp();
+  }
+  async function doLogin(body, btn) {
+    btn.disabled = true;
+    msg('loginMsg', '확인 중…');
     try {
-      var j = await callApi({ action: 'login', pin: pin }, { noPin: true, login: true });
-      store.set('pin', pin);
-      S.me = j.me; S.center = j.center; S.closing = j.closing; S.apiKey = j.apiKey; S.model = j.model;
-      setMembers(j.members || []);
-      enterApp();
+      var j = await callApi(body, { noPin: true, login: true });
+      if (body.pin) store.set('pin', body.pin);
+      applyLogin(j);
     } catch (e) {
-      if (e.data && e.data.auth) store.del('pin');
       showLogin();
       msg('loginMsg', e.message, 'err');
-    } finally {
-      $('loginBtn').disabled = false;
+    } finally { btn.disabled = false; }
+  }
+  /** 이 폰에 남은 로그인으로 바로 들어가기 */
+  async function resume() {
+    msg('loginMsg', '로그인 중…');
+    try {
+      var j = await callApi({ action: store.get('token') ? 'me' : 'login', pin: store.get('token') ? undefined : store.get('pin') }, { login: true });
+      applyLogin(j);
+    } catch (e) {
+      if (e.data && e.data.auth) { store.del('token'); store.del('pin'); }
+      showLogin();
+      msg('loginMsg', e.message, 'err');
     }
   }
   $('loginBtn').onclick = function () {
+    var id = $('idIn').value.trim().toLowerCase(), pw = $('pwIn').value;
+    if (!id || !pw) { msg('loginMsg', '아이디와 비밀번호를 넣어 주세요.', 'err'); return; }
+    doLogin({ action: 'login', id: id, password: pw }, $('loginBtn'));
+  };
+  $('pwIn').onkeydown = function (e) { if (e.key === 'Enter') $('loginBtn').click(); };
+  $('idIn').onkeydown = function (e) { if (e.key === 'Enter') $('pwIn').focus(); };
+  $('pinLoginBtn').onclick = function () {
     var pin = $('pinIn').value.trim();
     if (!/^\d{4,8}$/.test(pin)) { msg('loginMsg', 'PIN은 숫자 4~8자리예요.', 'err'); return; }
-    login(pin);
+    doLogin({ action: 'login', pin: pin }, $('pinLoginBtn'));
   };
-  $('pinIn').onkeydown = function (e) { if (e.key === 'Enter') $('loginBtn').click(); };
+  $('pinIn').onkeydown = function (e) { if (e.key === 'Enter') $('pinLoginBtn').click(); };
 
-  function showLogin() {
-    $('appView').classList.add('hidden'); $('who').classList.add('hidden');
-    $('loginView').classList.remove('hidden');
+  function hideAll() {
+    ['appView', 'who', 'signupView', 'loginView', 'accountView'].forEach(function (id) { $(id).classList.add('hidden'); });
   }
+  function showLogin() { hideAll(); $('loginView').classList.remove('hidden'); }
   function logout(reason) {
-    store.del('pin');
+    store.del('token'); store.del('pin');
     S.me = null;
-    $('pinIn').value = '';
+    $('pinIn').value = ''; $('pwIn').value = '';
     showLogin();
     msg('loginMsg', reason || '로그아웃했어요.', reason ? 'err' : 'ok');
   }
   $('logoutBtn').onclick = function () { logout(); };
 
   function enterApp() {
-    $('loginView').classList.add('hidden');
+    hideAll();
     $('appView').classList.remove('hidden');
     $('who').classList.remove('hidden');
     $('whoName').textContent = S.me.name + (isAdmin() ? ' · 관리자' : ' 선생님');
+    $('myId').textContent = S.me.id || '-';
     $('adminTabBtn').classList.remove('hidden');
-    $('adminTabBtn').textContent = isAdmin() ? '관리' : '회원';
+    setAdminTabLabel();
     Array.prototype.forEach.call(document.querySelectorAll('.adminOnly'), function (x) { x.classList.toggle('hidden', !isAdmin()); });
+    $('pendingSection').classList.toggle('hidden', !isAdmin() || !S.pending);
     $('memberSectionTitle').textContent = isAdmin() ? '회원' : '내 회원';
     $('mTrainerNote').classList.toggle('hidden', isAdmin());
     if (!isAdmin()) { S.teachers = [{ name: S.me.name, active: true }]; fillTrainerSelect($('mTrainer'), S.me.name); $('mTrainer').disabled = true; }
@@ -586,6 +701,12 @@ var SJ = (function () {
     logsLoaded = false;
     showTab(currentTab);
     if (!apiKey()) { if (isAdmin()) $('settingsBox').open = true; setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err'); }
+  }
+
+  function setAdminTabLabel() {
+    var b = $('adminTabBtn');
+    b.textContent = isAdmin() ? '관리' : '회원';
+    if (isAdmin() && S.pending) { var d = el('span', 'dot', String(S.pending)); b.appendChild(d); }
   }
 
   // ═════════ 탭 ═════════
@@ -1066,21 +1187,28 @@ var SJ = (function () {
     list.innerHTML = '<div class="note">불러오는 중…</div>';
     try {
       var j = await callApi({ action: 'teachers' });
-      S.teachers = j.teachers || [];
+      S.teachers = (j.teachers || []).filter(function (t) { return !t.pending; });
+      renderPending((j.teachers || []).filter(function (t) { return t.pending; }));
       var keepT = $('mTrainer').value;
       if (!S.teachers.some(function (t) { return t.name === keepT && t.active; })) keepT = '';
       fillTrainerSelect($('mTrainer'), keepT);
       renderMemberList();
       fillTransferFrom(j.noTrainer || 0);
       list.innerHTML = '';
-      j.teachers.forEach(function (t) {
+      S.teachers.forEach(function (t) {
         var row = el('div', 'item' + (t.active ? '' : ' off'));
         var left = el('div', 'grow');
         left.appendChild(el('b', '', t.name + (t.me ? ' (나)' : '')));
         left.appendChild(el('span', 'chip' + (t.role === '관리자' ? ' terra' : ''), t.role));
         if (!t.active) left.appendChild(el('span', 'chip soft', '사용 중지'));
-        if (!t.hasPin) left.appendChild(el('span', 'chip soft', 'PIN 없음'));
-        left.appendChild(el('span', 'sub', '담당 회원 ' + t.members + '명' + (!t.active && t.members ? ' — 담당 이전이 필요해요' : '')));
+        if (t.legacy && !t.noLogin) left.appendChild(el('span', 'chip soft', '아이디 없음'));
+        if (t.noLogin) left.appendChild(el('span', 'chip red', '로그인 불가'));
+        if (t.dupPin) left.appendChild(el('span', 'chip red', 'PIN 겹침'));
+        left.appendChild(el('span', 'sub', (t.id ? '@' + t.id + ' · ' : '') + '담당 회원 ' + t.members + '명' +
+          (!t.active && t.members ? ' — 담당 이전이 필요해요' : '') +
+          (t.dupPin ? ' — 예전 PIN이 다른 선생님과 같아 로그인이 막혀 있어요. [수정]에서 아이디·비밀번호를 만들어 주세요' : '') +
+          (t.legacy && !t.dupPin && !t.noLogin ? ' — 예전 PIN으로 로그인하면 아이디를 만들게 돼요' : '') +
+          (t.noLogin ? ' — [수정]에서 아이디·비밀번호를 만들어 주세요' : '')));
         row.appendChild(left);
         var b = el('button', 'btn ghost small', '수정');
         b.onclick = function () { editTeacher(t); };
@@ -1093,35 +1221,79 @@ var SJ = (function () {
     }
   }
 
+  function renderPending(list) {
+    S.pending = list.length; setAdminTabLabel();
+    $('pendingSection').classList.toggle('hidden', !list.length);
+    $('pendingCount').textContent = list.length;
+    var box = $('pendingList'); box.innerHTML = '';
+    list.forEach(function (t) {
+      var row = el('div', 'item'); row.style.flexWrap = 'wrap';
+      var left = el('div', 'grow');
+      left.appendChild(el('b', '', t.name));
+      left.appendChild(el('span', 'sub', ['@' + t.id, t.phone, t.birth ? '생년월일 ' + t.birth : '', t.joined ? '신청 ' + t.joined : ''].filter(Boolean).join(' · ')));
+      row.appendChild(left);
+      var role = el('select', 'mini'); ['선생님', '관리자'].forEach(function (r) { var o = el('option', '', r); o.value = r; role.appendChild(o); });
+      var ok = el('button', 'btn terra small', '승인'), no = el('button', 'btn ghost small danger', '거절');
+      row.appendChild(role); row.appendChild(ok); row.appendChild(no);
+      ok.onclick = async function () {
+        ok.disabled = true;
+        try { await callApi({ action: 'approveTeacher', name: t.name, role: role.value }); msg('pMsg', t.name + ' 선생님을 승인했어요. 이제 로그인할 수 있어요.', 'ok'); loadTeachers(); }
+        catch (e) { msg('pMsg', e.message, 'err'); ok.disabled = false; }
+      };
+      no.onclick = async function () {
+        if (no.dataset.sure !== '1') { no.dataset.sure = '1'; no.textContent = '정말 거절'; return; }
+        no.disabled = true;
+        try { await callApi({ action: 'rejectTeacher', name: t.name }); msg('pMsg', t.name + '님의 가입 요청을 거절했어요.', 'ok'); loadTeachers(); }
+        catch (e) { msg('pMsg', e.message, 'err'); no.disabled = false; }
+      };
+      box.appendChild(row);
+    });
+  }
+  $('joinCopy').onclick = async function () {
+    var url = new URL('./', location.href).href.split('?')[0];
+    var ok = await copyText('소웰 수업일지 선생님 가입 안내 🌿\n1) ' + url + ' 열기\n2) [선생님 가입하기] 누르기\n3) 아이디·비밀번호·이름·휴대폰·생년월일 입력\n대표가 승인하면 바로 로그인할 수 있어요.');
+    $('joinCopy').textContent = ok ? '복사됨 ✓' : '복사 실패';
+    setTimeout(function () { $('joinCopy').textContent = '가입 안내 문구 복사'; }, 2000);
+  };
+
+  var editingLegacy = false;
   function resetTeacherForm() {
-    $('tOriginal').value = ''; $('tName').value = ''; $('tPin').value = '';
+    editingLegacy = false;
+    $('tOriginal').value = ''; $('tName').value = ''; $('tId').value = ''; $('tPw').value = '';
     $('tRole').value = '선생님'; $('tActive').value = '1';
-    $('teacherFormTitle').textContent = '＋ 선생님 추가';
-    $('tPinLabel').textContent = 'PIN (숫자 4~8자리)';
-    $('tPin').placeholder = '선생님마다 다르게';
+    $('teacherFormTitle').textContent = '＋ 선생님 직접 추가';
+    $('tIdBox').classList.remove('hidden');
+    $('tPwLabel').textContent = '임시 비밀번호';
+    $('tPw').placeholder = '영어+숫자 6자 이상';
+    $('tPwNote').textContent = '선생님께 아이디와 임시 비밀번호를 알려 주고, 로그인 후 [내 계정]에서 바꾸게 해 주세요.';
   }
   function editTeacher(t) {
-    $('tOriginal').value = t.name; $('tName').value = t.name; $('tPin').value = '';
+    editingLegacy = !t.id;
+    $('tOriginal').value = t.name; $('tName').value = t.name; $('tId').value = ''; $('tPw').value = '';
     $('tRole').value = t.role; $('tActive').value = t.active ? '1' : '0';
     $('teacherFormTitle').textContent = '✏️ ' + t.name + ' 수정';
-    $('tPinLabel').textContent = '새 PIN (바꿀 때만)';
-    $('tPin').placeholder = '비워두면 그대로';
+    $('tIdBox').classList.toggle('hidden', !editingLegacy);
+    $('tPwLabel').textContent = editingLegacy ? '임시 비밀번호' : '비밀번호 초기화 (잊어버렸을 때만)';
+    $('tPw').placeholder = editingLegacy ? '영어+숫자 6자 이상' : '비워두면 그대로';
+    $('tPwNote').textContent = editingLegacy ? '아직 아이디가 없는 선생님이에요. 비워두면 예전 PIN으로 로그인해서 직접 만들어요.'
+                                             : '새 임시 비밀번호를 선생님께 알려 주세요. 그 선생님의 다른 폰 로그인은 풀려요.';
     msg('tMsg', '');
     $('teacherFormBox').open = true;
     $('teacherFormBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
   $('tCancelBtn').onclick = function () { resetTeacherForm(); msg('tMsg', ''); $('teacherFormBox').open = false; };
   $('tSaveBtn').onclick = async function () {
-    var original = $('tOriginal').value, name = $('tName').value.trim(), pin = $('tPin').value.trim();
+    var original = $('tOriginal').value, name = $('tName').value.trim();
+    var id = $('tId').value.trim().toLowerCase(), pw = $('tPw').value;
     if (!name) { msg('tMsg', '이름을 적어 주세요.', 'err'); return; }
-    if (pin && !/^\d{4,8}$/.test(pin)) { msg('tMsg', 'PIN은 숫자 4~8자리예요.', 'err'); return; }
-    if (!original && !pin) { msg('tMsg', '새 선생님은 PIN이 필요해요.', 'err'); return; }
+    if (!original && (!id || !pw)) { msg('tMsg', '새 선생님은 아이디와 임시 비밀번호가 필요해요.', 'err'); return; }
+    if (editingLegacy && (id || pw) && !(id && pw)) { msg('tMsg', '아이디와 임시 비밀번호를 함께 적어 주세요.', 'err'); return; }
     var b = $('tSaveBtn'); b.disabled = true;
     try {
-      var j = await callApi({ action: 'saveTeacher', original: original, name: name, newPin: pin,
+      var j = await callApi({ action: 'saveTeacher', original: original, name: name, newId: id, newPassword: pw,
                               role: $('tRole').value, active: $('tActive').value === '1' });
       var note = original ? name + ' 선생님 정보를 바꿨어요.' : name + ' 선생님을 추가했어요.';
-      if (pin) note += ' PIN은 선생님께 따로 전달해 주세요.';
+      if (pw) note += ' 아이디와 임시 비밀번호를 선생님께 따로 전달해 주세요.';
       resetTeacherForm(); $('teacherFormBox').open = false;
       msg('tMsg', note, 'ok'); $('teacherFormBox').open = true;
       await loadTeachers();
@@ -1131,8 +1303,8 @@ var SJ = (function () {
         $('transferSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
       if (j.self) {
-        if (pin) store.set('pin', pin);
-        login(store.get('pin'), true);
+        if (j.pwReset) logout('비밀번호를 바꿨어요. 새 비밀번호로 다시 로그인해 주세요.');
+        else resume();
       }
     } catch (e) {
       msg('tMsg', e.message, 'err');
@@ -1285,6 +1457,132 @@ var SJ = (function () {
     });
   }
 
+  // ═════════ 아이디·비밀번호 공통 ═════════
+  var ID_RE = /^[a-z][a-z0-9._-]{3,19}$/;
+  function fmtPhone(v) {
+    v = v.replace(/[^\d]/g, '').slice(0, 11);
+    return v.length < 4 ? v : v.length < 8 ? v.slice(0, 3) + '-' + v.slice(3) : v.slice(0, 3) + '-' + v.slice(3, v.length - 4) + '-' + v.slice(-4);
+  }
+  function pwProblem(pw, id) {
+    if (!pw) return '';
+    if (pw.length < 6) return '6자 이상으로 정해 주세요.';
+    if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return '영어와 숫자를 함께 넣어 주세요.';
+    if (id && pw.toLowerCase().indexOf(id) >= 0) return '비밀번호에 아이디를 넣을 수 없어요.';
+    return '';
+  }
+  /** 아이디 칸 + 중복 확인 버튼 + 비밀번호 두 칸을 묶어 상태를 관리 */
+  function idForm(p, onReady) {
+    var st = { id: '', ok: false };
+    function idv() { return $(p + 'Id').value.trim().toLowerCase(); }
+    function check() {
+      var id = idv(), pw = $(p + 'Pw').value, pw2 = $(p + 'Pw2').value;
+      var bad = pwProblem(pw, id);
+      msg(p + 'PwMsg', pw ? (bad || '좋아요 ✓') : '', pw ? (bad ? 'err' : 'ok') : '');
+      msg(p + 'Pw2Msg', pw2 ? (pw2 === pw ? '같아요 ✓' : '서로 달라요.') : '', pw2 ? (pw2 === pw ? 'ok' : 'err') : '');
+      var ready = st.ok && st.id === id && pw && !bad && pw === pw2;
+      onReady(!!ready);
+    }
+    $(p + 'Id').addEventListener('input', function () {
+      var el2 = $(p + 'Id'); el2.value = el2.value.toLowerCase().replace(/\s/g, '');
+      var id = idv();
+      if (st.id !== id) st.ok = false;
+      if (!id) msg(p + 'IdMsg', '');
+      else if (!ID_RE.test(id)) msg(p + 'IdMsg', '영어 소문자로 시작하는 4~20자 (영어·숫자·점·밑줄·하이픈)');
+      else msg(p + 'IdMsg', st.ok ? '사용할 수 있는 아이디예요 ✓' : '[중복 확인]을 눌러 주세요.');
+      check();
+    });
+    [p + 'Pw', p + 'Pw2'].forEach(function (x) { $(x).addEventListener('input', check); });
+    $(p + 'Check').onclick = async function () {
+      var id = idv();
+      if (!ID_RE.test(id)) { msg(p + 'IdMsg', '영어 소문자로 시작하는 4~20자로 정해 주세요.', 'err'); return; }
+      var b = $(p + 'Check'); b.disabled = true; b.textContent = '확인 중…';
+      try {
+        var j = await callApi({ action: 'checkId', newId: id }, { noPin: true, login: true });
+        if (idv() !== id) return;
+        st = { id: id, ok: !!j.available };
+        msg(p + 'IdMsg', j.available ? '사용할 수 있는 아이디예요 ✓' : (j.reason || '쓸 수 없는 아이디예요.'), j.available ? 'ok' : 'err');
+      } catch (e) { st = { id: '', ok: false }; msg(p + 'IdMsg', e.message, 'err'); }
+      finally { b.disabled = false; b.textContent = '중복 확인'; check(); }
+    };
+    return {
+      id: idv, pw: function () { return $(p + 'Pw').value; }, check: check,
+      taken: function (m) { st = { id: '', ok: false }; msg(p + 'IdMsg', m, 'err'); check(); },
+      reset: function () { st = { id: '', ok: false }; [p + 'Id', p + 'Pw', p + 'Pw2'].forEach(function (x) { $(x).value = ''; });
+                           [p + 'IdMsg', p + 'PwMsg', p + 'Pw2Msg'].forEach(function (x) { msg(x, ''); }); }
+    };
+  }
+
+  // ═════════ 선생님 가입 ═════════
+  var idReady = false;
+  var signup = idForm('j', function (r) { idReady = r; signupReady(); });
+  function signupReady() {
+    var phoneOk = /^01\d{8,9}$/.test($('jPhone').value.replace(/[^\d]/g, ''));
+    $('jSubmit').disabled = !(idReady && $('jName').value.trim() && phoneOk && $('jBirth').value);
+  }
+  ['jName', 'jPhone', 'jBirth'].forEach(function (id) { $(id).addEventListener('input', signupReady); });
+  $('jPhone').addEventListener('input', function () { $('jPhone').value = fmtPhone($('jPhone').value); signupReady(); });
+  $('jSubmit').onclick = async function () {
+    var b = $('jSubmit'); b.disabled = true; b.textContent = '보내는 중…'; msg('jMsg', '');
+    try {
+      var j = await callApi({ action: 'signup', newId: signup.id(), newPassword: signup.pw(), name: $('jName').value.trim(),
+                              phone: $('jPhone').value, birth: $('jBirth').value }, { noPin: true, login: true });
+      signup.reset(); ['jName', 'jPhone', 'jBirth'].forEach(function (id) { $(id).value = ''; });
+      showLogin();
+      $('idIn').value = j.id; $('pwIn').value = '';
+      msg('loginMsg', j.name + '님, 가입 요청을 보냈어요. 대표가 승인하면 이 아이디로 로그인할 수 있어요.', 'ok');
+    } catch (e) {
+      if (e.data && e.data.idTaken) signup.taken(e.message);
+      msg('jMsg', e.message, 'err');
+    } finally { b.textContent = '가입하기'; signupReady(); }
+  };
+  $('toSignup').onclick = function () {
+    hideAll(); $('signupView').classList.remove('hidden');
+    var y = new Date().getFullYear() - 15; $('jBirth').max = y + '-12-31';
+    $('jId').focus();
+  };
+  $('toLogin').onclick = function () { showLogin(); msg('loginMsg', ''); };
+
+  // ═════════ 예전 PIN 계정 → 아이디 만들기 ═════════
+  var acc = idForm('a', function (r) { $('aSubmit').disabled = !r; });
+  function showAccountSetup() {
+    hideAll();
+    $('who').classList.remove('hidden');
+    $('whoName').textContent = S.me.name + (isAdmin() ? ' · 관리자' : ' 선생님');
+    $('accName').textContent = S.me.name;
+    $('accountView').classList.remove('hidden');
+  }
+  $('aSubmit').onclick = async function () {
+    var b = $('aSubmit'); b.disabled = true; b.textContent = '만드는 중…'; msg('aMsg', '');
+    try {
+      var j = await callApi({ action: 'setAccount', newId: acc.id(), newPassword: acc.pw() });
+      store.set('token', j.token); store.del('pin');
+      acc.reset();
+      await resume();
+      setStatus('아이디(' + j.id + ')를 만들었어요. 다음부터는 아이디와 비밀번호로 로그인해요.', 'ok');
+    } catch (e) {
+      if (e.data && e.data.idTaken) acc.taken(e.message);
+      msg('aMsg', e.message, 'err');
+      b.disabled = false;
+    } finally { b.textContent = '만들기'; }
+  };
+
+  // ═════════ 내 계정: 비밀번호 바꾸기 ═════════
+  $('cSave').onclick = async function () {
+    var o = $('cOld').value, n = $('cNew').value, n2 = $('cNew2').value;
+    var bad = pwProblem(n, S.me.id);
+    if (!o || !n) { msg('cMsg', '지금 비밀번호와 새 비밀번호를 넣어 주세요.', 'err'); return; }
+    if (bad) { msg('cMsg', bad, 'err'); return; }
+    if (n !== n2) { msg('cMsg', '새 비밀번호가 서로 달라요.', 'err'); return; }
+    var b = $('cSave'); b.disabled = true;
+    try {
+      var j = await callApi({ action: 'changePassword', oldPassword: o, newPassword: n });
+      store.set('token', j.token);
+      $('cOld').value = ''; $('cNew').value = ''; $('cNew2').value = '';
+      msg('cMsg', '비밀번호를 바꿨어요.', 'ok');
+    } catch (e) { msg('cMsg', e.message, 'err'); }
+    finally { b.disabled = false; }
+  };
+
   // ═════════ 시작 ═════════
   $('verLabel').textContent = 'SOWEL 수업일지 v' + SOWEL_UPD.version;
   var pendingVer = '';
@@ -1296,8 +1594,7 @@ var SJ = (function () {
   }, function (v) { pendingVer = v; $('updBar').classList.remove('hidden'); });
   $('updBtn').onclick = function () { if (!SOWEL_UPD.reloadTo(pendingVer)) location.reload(); };
 
-  var saved = store.get('pin');
-  if (saved) { $('loginView').classList.add('hidden'); login(saved, true); }
+  if (store.get('token') || store.get('pin')) { hideAll(); resume(); }
   else showLogin();
 })();
 </script>
