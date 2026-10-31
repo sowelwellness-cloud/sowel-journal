@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.7.0">
+<meta name="sowel-version" content="0.10.0">
 <meta name="robots" content="noindex,nofollow">
 <title>나의 수업일지 · SOWEL</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -88,6 +88,36 @@ var SOWEL_UPD = (function () {
   .tip{text-align:center;font-size:12px;color:var(--muted);margin-top:32px}
   .foot{text-align:center;font-family:'Cormorant Garamond',serif;letter-spacing:.2em;font-size:13px;color:var(--muted);margin-top:10px}
   .hidden{display:none !important}
+  /* 다음 수업 */
+  .next{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;display:flex;gap:14px;align-items:center}
+  .dday{flex:0 0 auto;width:64px;height:64px;border-radius:16px;background:var(--terra);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+  .dday b{font-size:20px}
+  .dday span{font-size:11px;opacity:.9}
+  .next .info{min-width:0}
+  .next .lbl{font-size:12px;color:var(--muted);font-weight:500}
+  .next .when{font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .next .who2{font-size:13px;color:var(--muted)}
+  .next .more{font-size:12px;color:var(--muted);margin-top:4px}
+  /* 부위별 기록 */
+  .chips{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .pchip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--brown);border-radius:99px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer}
+  .pchip b{font-weight:700;margin-left:4px;color:var(--terra)}
+  .pchip.on{background:var(--brown);border-color:var(--brown);color:#fff}
+  .pchip.on b{color:#E9B48F}
+  .exlist{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .ex{border-top:1px solid var(--soft)}
+  .ex:first-child{border-top:0}
+  .ex>summary{list-style:none;cursor:pointer;padding:12px 16px;display:flex;gap:10px;align-items:baseline}
+  .ex>summary::-webkit-details-marker{display:none}
+  .ex .nm{font-weight:700;font-size:15px;flex:1;min-width:0}
+  .ex .ct{font-size:12px;color:var(--muted);white-space:nowrap}
+  .ex .last{display:block;font-size:13px;color:var(--muted);font-weight:400;margin-top:2px}
+  .ex .tag{font-size:11px;color:var(--muted);background:var(--soft);border-radius:99px;padding:1px 7px;margin-left:6px;font-weight:500;vertical-align:1px}
+  .hist{padding:0 16px 12px;font-size:13px}
+  .hist div{display:flex;gap:10px;padding:3px 0;border-top:1px dashed var(--soft)}
+  .hist div:first-child{border-top:0}
+  .hist span:first-child{color:var(--muted);flex:0 0 auto;width:62px}
 </style>
 </head>
 <body>
@@ -104,6 +134,16 @@ var SOWEL_UPD = (function () {
       <div class="stat"><b id="count">0</b><span>기록된 수업</span></div>
       <div class="stat"><b id="since">-</b><span>첫 기록</span></div>
       <div class="stat hidden" id="trainerStat"><b id="trainer">-</b><span>담당 선생님</span></div>
+    </div>
+  </section>
+
+  <section class="next hidden" id="next">
+    <div class="dday" id="dday"><b>D-1</b><span>다음 수업</span></div>
+    <div class="info">
+      <div class="lbl">다음 수업</div>
+      <div class="when" id="nextWhen"></div>
+      <div class="who2" id="nextWho"></div>
+      <div class="more" id="nextMore"></div>
     </div>
   </section>
 
@@ -159,6 +199,137 @@ var SOWEL_UPD = (function () {
     if (log.trainer) h.appendChild(el('span', 'chip', log.trainer + ' 선생님'));
     return h;
   }
+  // ───── 다음 수업 ─────
+  function hm(d) {
+    var h = d.getHours(), m = d.getMinutes();
+    return (h < 12 ? '오전 ' : '오후 ') + ((h % 12) || 12) + ':' + ('0' + m).slice(-2);
+  }
+  function md(d) { return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + DAYS[d.getDay()] + ')'; }
+  /** 일정 탭 형식 {date:'2026-11-03', start:'19:00', min:50} → 시작·끝 시각 */
+  function toTimes(n) {
+    var d = parseDate(n.date); if (!d) return null;
+    var p = String(n.start || '').split(':');
+    var a = new Date(d.getFullYear(), d.getMonth(), d.getDate(), +p[0] || 0, +p[1] || 0);
+    return { a: a, z: new Date(a.getTime() + (Number(n.min) || 60) * 60000), trainer: n.trainer };
+  }
+  function renderNext(next) {
+    next = (next || []).map(toTimes).filter(function (n) { return n && n.z.getTime() > Date.now(); });
+    if (!next.length) return;
+    var a = next[0].a, z = next[0].z;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var day0 = new Date(a); day0.setHours(0, 0, 0, 0);
+    var diff = Math.round((day0 - today) / 86400000);
+    $('dday').innerHTML = '';
+    $('dday').appendChild(el('b', '', diff <= 0 ? '오늘' : diff === 1 ? '내일' : 'D-' + diff));
+    $('dday').appendChild(el('span', '', a.getHours() < 12 ? '오전' : '오후'));
+    $('nextWhen').textContent = md(a) + ' ' + hm(a) + ' – ' + hm(z).replace(/^오[전후] /, '');
+    $('nextWho').textContent = next[0].trainer ? next[0].trainer + ' 선생님' : '';
+    $('nextMore').textContent = next.length > 1 ? '그다음: ' + next.slice(1).map(function (n) {
+      var d = n.a; return (d.getMonth() + 1) + '/' + d.getDate() + '(' + DAYS[d.getDay()] + ') ' + hm(d);
+    }).join(' · ') : '';
+    $('next').classList.remove('hidden');
+  }
+
+  // ───── 부위별 운동 기록 ─────
+  var PARTS = ['하체', '가슴', '등', '어깨', '팔', '코어', '전신', '유산소', '가동성·스트레칭', '기타'];
+  /** 예전 일지(부위 정보 없음)는 운동 이름으로 부위 추정 */
+  var GUESS = [
+    ['하체', /레그\s?컬|레그\s?익스텐션|햄스트링\s?컬|노르딕|힙\s?쓰러스트|힙\s?어브덕|힙\s?어덕/],
+    ['가동성·스트레칭', /스트레칭|오픈북|폼\s?롤|가동성|모빌리티|요가|캣\s?카우|월\s?슬라이드|90.?90|흉추|햄스트링\s?스트레칭/],
+    ['유산소', /러닝|런닝|트레드밀|사이클|자전거|로잉|일립티컬|스텝밀|줄넘기|걷기|인터벌/],
+    ['코어', /플랭크|데드\s?버그|크런치|버드\s?독|싯업|레그\s?레이즈|할로우|팔로프|러시안|복근|코어|사이드\s?브릿지/],
+    ['전신', /버피|스윙|클린|스내치|스러스터|터키시|파머스|캐리|마운틴\s?클라이머/],
+    ['어깨', /숄더|레터럴|프론트\s?레이즈|페이스\s?풀|밀리터리|오버헤드\s?프레스|아놀드|리어\s?델트/],
+    ['팔', /컬|트라이셉|삼두|이두|킥백|딥스|해머/],
+    ['가슴', /벤치|푸시\s?업|푸쉬\s?업|체스트|플라이|펙덱|가슴/],
+    ['등', /풀\s?업|친\s?업|랫\s?풀|로우|풀\s?다운|백\s?익스텐션|등/],
+    ['하체', /스쿼트|런지|데드|힙|브릿지|레그|카프|스텝\s?업|굿모닝|글루트|하체|스플릿|쓰러스트|와이드|고블릿|박스\s?점프/]
+  ];
+  function guessPart(name) {
+    for (var i = 0; i < GUESS.length; i++) if (GUESS[i][1].test(name)) return GUESS[i][0];
+    return '기타';
+  }
+  /** 일지 글의 '💪 오늘 한 운동'에서 운동 줄을 뽑음 ([부위] 묶음이 있으면 그대로 씀) */
+  function exFromText(t) {
+    var out = [], inEx = false, part = '';
+    String(t || '').split('\n').forEach(function (l) {
+      l = l.trim();
+      if (/^💪/u.test(l)) { inEx = true; return; }
+      if (!inEx) return;
+      if (/^[👍🏠➡📝🌿]/u.test(l)) { inEx = false; return; }
+      var hd = /^\[(.+)\]$/.exec(l);
+      if (hd) { part = PARTS.indexOf(hd[1]) >= 0 ? hd[1] : ''; return; }
+      if (!/^- /.test(l)) return;
+      l = l.slice(2).trim();
+      var m = /^(.*?)\s+((?:\d|약|맨몸|양쪽|한쪽|좌우).*)$/.exec(l);
+      var n = (m ? m[1] : l).trim(), d = m ? m[2].trim() : '';
+      if (n) out.push({ n: n, d: d, p: part || guessPart(n) });
+    });
+    return out;
+  }
+  function buildParts(logs) {
+    var parts = {};
+    logs.slice().reverse().forEach(function (log) {          // 오래된 것부터
+      var ex = (log.ex && log.ex.length) ? log.ex : exFromText(log.text);
+      ex.forEach(function (e) {
+        var p = PARTS.indexOf(e.p) >= 0 ? e.p : '기타';
+        var key = String(e.n).replace(/\s+/g, '');
+        var P = parts[p] || (parts[p] = { name: p, items: {}, count: 0 });
+        var it = P.items[key] || (P.items[key] = { name: e.n, hist: [] });
+        it.name = e.n;
+        it.hist.unshift({ date: log.date, d: e.d || '' });   // 최신이 앞
+        P.count++;
+      });
+    });
+    return Object.keys(parts).map(function (k) {
+      var P = parts[k];
+      P.list = Object.keys(P.items).map(function (x) { return P.items[x]; })
+        .sort(function (a, b) { return a.hist[0].date < b.hist[0].date ? 1 : a.hist[0].date > b.hist[0].date ? -1 : b.hist.length - a.hist.length; });
+      return P;
+    }).sort(function (a, b) { return b.count - a.count || PARTS.indexOf(a.name) - PARTS.indexOf(b.name); });
+  }
+  function md2(s) { var d = parseDate(s); return d ? (d.getMonth() + 1) + '/' + d.getDate() : s; }
+  function renderParts(container, logs) {
+    var parts = buildParts(logs);
+    if (!parts.length) return;
+    container.appendChild(el('div', 'sec', '부위별 운동 기록'));
+    var chips = el('div', 'chips'); container.appendChild(chips);
+    var box = el('div', 'exlist'); container.appendChild(box);
+    var total = parts.reduce(function (s2, P) { return s2 + P.list.length; }, 0);
+    function show(sel) {
+      Array.prototype.forEach.call(chips.children, function (c) { c.classList.toggle('on', c.dataset.p === sel); });
+      box.innerHTML = '';
+      var items = [];
+      parts.forEach(function (P) { if (sel === '' || P.name === sel) P.list.forEach(function (it) { items.push({ it: it, part: P.name }); }); });
+      if (sel === '') items.sort(function (a, b) { return a.it.hist[0].date < b.it.hist[0].date ? 1 : a.it.hist[0].date > b.it.hist[0].date ? -1 : 0; });
+      items.forEach(function (x) {
+        var it = x.it, row = el('details', 'ex');
+        var sm = el('summary');
+        var nm = el('div', 'nm', it.name);
+        if (sel === '') nm.appendChild(el('span', 'tag', x.part));
+        nm.appendChild(el('span', 'last', '최근 ' + md2(it.hist[0].date) + (it.hist[0].d ? ' · ' + it.hist[0].d : '')));
+        sm.appendChild(nm);
+        sm.appendChild(el('span', 'ct', it.hist.length + '회'));
+        row.appendChild(sm);
+        var h = el('div', 'hist');
+        it.hist.slice(0, 10).forEach(function (r) {
+          var line = el('div'); line.appendChild(el('span', '', md2(r.date))); line.appendChild(el('span', '', r.d || '기록 없음')); h.appendChild(line);
+        });
+        if (it.hist.length > 10) h.appendChild(el('div', '', '… 외 ' + (it.hist.length - 10) + '번'));
+        row.appendChild(h);
+        box.appendChild(row);
+      });
+    }
+    var all = el('button', 'pchip', '전체'); all.dataset.p = ''; all.appendChild(el('b', '', String(total))); chips.appendChild(all);
+    all.onclick = function () { show(''); };
+    parts.forEach(function (P) {
+      var c = el('button', 'pchip', P.name); c.dataset.p = P.name; c.appendChild(el('b', '', String(P.list.length)));
+      c.onclick = function () { show(P.name); };
+      chips.appendChild(c);
+    });
+    show(parts[0].name);
+  }
+
   function fail(msg) {
     $('state').textContent = msg;
   }
@@ -229,6 +400,7 @@ var SOWEL_UPD = (function () {
       $('since').textContent = logs.length ? shortDate(logs[logs.length - 1].date) : '-';
       $('hero').classList.remove('hidden');
       $('tip').classList.remove('hidden');
+      renderNext(j.next);
 
       if (!logs.length) return fail('아직 기록된 수업일지가 없어요.\n첫 수업 후에 이곳에 쌓여요 🌿');
       $('state').classList.add('hidden');
@@ -242,6 +414,8 @@ var SOWEL_UPD = (function () {
       c.appendChild(head(first, fd && fd.getTime() >= weekAgo));
       c.appendChild(el('div', 'body', bodyText(first.text)));
       list.appendChild(c);
+
+      renderParts(list, logs);
 
       if (logs.length > 1) {
         list.appendChild(el('div', 'sec', '지난 수업 (' + (logs.length - 1) + ')'));
