@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.10.0">
+<meta name="sowel-version" content="0.11.0">
 <title>소웰 수업일지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -164,8 +164,11 @@
   .stbtns{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
   .stbtns button{flex:1;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 0;font:inherit;font-size:14px;cursor:pointer}
   .stbtns button.on{background:var(--brown);color:#fff;border-color:var(--brown);font-weight:700}
-  .grid3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px}
-  .dows{display:flex;gap:4px;margin-top:8px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}
+  .grid3>div:first-child{grid-column:1/-1}
+  .grid3 input,.grid3 select{min-width:0}
+  .dows{display:flex;gap:4px;margin-top:10px}
+  #fDowsBox .note{margin-top:8px}
   .dows label{flex:1;margin:0;text-align:center;border:1px solid var(--line);border-radius:8px;padding:6px 0;font-size:13px;color:var(--brown);cursor:pointer}
   .dows input{display:none}
   .dows label.on{background:var(--terra);border-color:var(--terra);color:#fff;font-weight:700}
@@ -486,7 +489,7 @@
     <div class="stbtns" id="dStatus"></div>
     <div class="row" id="dLogRow"><button class="btn terra" id="dLog">이 수업 일지 쓰기</button></div>
     <div class="row"><button class="btn ghost" id="dEdit">수정</button><button class="btn ghost danger" id="dDel">삭제</button></div>
-    <div class="row hidden" id="dDelScope"><button class="btn danger-fill" id="dDelOne">이 일정만 삭제</button><button class="btn danger-fill" id="dDelFuture">이후 반복 모두 삭제</button></div>
+    <div class="row hidden" id="dDelScope"><button class="btn danger-fill" id="dDelOne">이 일정만 삭제</button><button class="btn danger-fill" id="dDelFuture">이 날부터 반복 끝내기</button></div>
     <div class="msg" id="dMsg"></div>
   </div>
 </div>
@@ -505,15 +508,17 @@
         <option value="30">30분</option><option value="40">40분</option><option value="50">50분</option><option value="60">60분</option>
         <option value="80">80분</option><option value="90">90분</option><option value="120">2시간</option><option value="180">3시간</option><option value="480">8시간</option></select></div>
     </div>
-    <div id="fRepeatBox">
-      <label for="fRepeat">반복</label>
-      <select id="fRepeat"><option value="0">반복 안 함</option><option value="4">매주 · 4주</option><option value="8">매주 · 8주</option>
-        <option value="12">매주 · 12주</option><option value="16">매주 · 16주</option><option value="24">매주 · 24주</option></select>
-      <div class="dows hidden" id="fDows"></div>
-    </div>
     <div id="fScopeBox" class="hidden">
       <label>반복 일정 수정</label>
-      <div class="seg" id="fScope"><button data-s="one" class="on">이 일정만</button><button data-s="future">이후 모두</button></div>
+      <div class="seg" id="fScope"><button data-s="one" class="on">이 일정만</button><button data-s="future">이 날부터 모두</button></div>
+    </div>
+    <div id="fRepeatBox">
+      <label>반복</label>
+      <div class="seg" id="fRepeat"><button data-r="0" class="on">반복 안 함</button><button data-r="1">매주 반복</button></div>
+      <div class="hidden" id="fDowsBox">
+        <div class="dows" id="fDows"></div>
+        <p class="note" id="fRepeatNote"></p>
+      </div>
     </div>
     <label for="fMemo">메모 (선생님만 봐요)</label>
     <textarea id="fMemo" maxlength="300" style="min-height:64px"></textarea>
@@ -1857,7 +1862,11 @@ var SJ = (function () {
     cal.appendChild(head);
     var body = el('div', 'calbody'), H = (eh - sh) * HOUR_PX;
     var tcol = el('div', 'tcol'); tcol.style.height = H + 'px';
-    for (var hh = sh + 1; hh < eh; hh++) { var lb = el('span', '', (hh < 12 ? '오전 ' : '오후 ') + ((hh % 12) || 12)); if (SV.view === 'week') lb.textContent = String(hh); lb.style.top = ((hh - sh) * HOUR_PX) + 'px'; tcol.appendChild(lb); }
+    for (var hh = sh; hh < eh; hh++) {
+      var lb = el('span', '', (hh < 12 ? '오전 ' : '오후 ') + ((hh % 12) || 12)); if (SV.view === 'week') lb.textContent = String(hh);
+      lb.style.top = ((hh - sh) * HOUR_PX) + 'px'; if (hh === sh) lb.style.transform = 'translateY(2px)';
+      tcol.appendChild(lb);
+    }
     body.appendChild(tcol);
     days.forEach(function (y) {
       var col = el('div', 'dcol' + (y === today ? ' today' : ''));
@@ -1934,12 +1943,13 @@ var SJ = (function () {
   var curEv = null;
   function fmtWhen(e) {
     var d = parseYmd(e.date);
-    return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + DOW[d.getDay()] + ') ' + e.start + ' – ' + minToHm(hmToMin(e.start) + e.min) + ' · ' + e.min + '분' + (e.series ? ' · 매주 반복' : '');
+    return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + DOW[d.getDay()] + ') ' + e.start + ' – ' + minToHm(hmToMin(e.start) + e.min) + ' · ' + e.min + '분' +
+      (e.series ? '\n🔁 매주 ' + daysLabel(e.days && e.days.length ? e.days : [d.getDay()]) + ' ' + e.start + ' 반복' : '');
   }
   function openDetail(e) {
     curEv = e;
     $('dTitle').textContent = e.kind === '개인' ? e.title : 'PT ' + e.member;
-    $('dWhen').textContent = fmtWhen(e);
+    $('dWhen').textContent = fmtWhen(e); $('dWhen').style.whiteSpace = 'pre-line';
     $('dWho').textContent = isAdmin() ? '담당 ' + e.trainer : '';
     $('dMemo').textContent = e.memo ? '메모: ' + e.memo : '';
     var st = $('dStatus'); st.innerHTML = '';
@@ -1977,7 +1987,7 @@ var SJ = (function () {
     try {
       var j = await callApi({ action: 'deleteEvent', id: curEv.id, scope: scope });
       closeSheet('evDetail'); $('dDel').dataset.sure = ''; $('dDel').textContent = '삭제';
-      SV.flash = '일정 ' + (j.deleted || 0) + '개를 지웠어요.';
+      SV.flash = j.ended ? '반복을 끝냈어요. 그 전 일정과 완료 기록은 그대로예요.' : '일정을 지웠어요.';
       loadSchedule(true);
     } catch (e) { msg('dMsg', e.message, 'err'); }
   }
@@ -1999,6 +2009,19 @@ var SJ = (function () {
     });
     sel.value = keep;
   }
+  function daysLabel(days) {
+    return [1, 2, 3, 4, 5, 6, 0].filter(function (d) { return days.indexOf(d) >= 0; }).map(function (d) { return DOW[d]; }).join('·');
+  }
+  function pickedDows() {
+    return Array.prototype.filter.call($('fDows').querySelectorAll('input'), function (c) { return c.checked; }).map(function (c) { return +c.value; });
+  }
+  function repeatNote() {
+    var days = pickedDows(), t = $('fStart').value || '--:--';
+    if (!days.length) { $('fRepeatNote').textContent = '반복할 요일을 눌러 주세요. 여러 개 고를 수 있어요.'; return; }
+    $('fRepeatNote').textContent = formEv
+      ? '이 날부터 매주 ' + daysLabel(days) + ' ' + t + '로 바뀌어요. 그 전 일정과 완료·노쇼 기록은 그대로예요.'
+      : '매주 ' + daysLabel(days) + ' ' + t + ' — 그만할 때까지 계속 반복돼요. 그만하려면 일정을 눌러 [삭제 → 이 날부터 반복 끝내기].';
+  }
   function drawDows(dateY, picked) {
     var box = $('fDows'); box.innerHTML = '';
     var base = parseYmd(dateY).getDay();
@@ -2007,9 +2030,24 @@ var SJ = (function () {
       var lb = el('label', picked.indexOf(d) >= 0 ? 'on' : '', DOW[d]);
       var cb = el('input'); cb.type = 'checkbox'; cb.value = d; cb.checked = picked.indexOf(d) >= 0;
       lb.appendChild(cb);
-      lb.onclick = function (ev) { ev.preventDefault(); cb.checked = !cb.checked; lb.classList.toggle('on', cb.checked); };
+      lb.onclick = function (ev) { ev.preventDefault(); cb.checked = !cb.checked; lb.classList.toggle('on', cb.checked); repeatNote(); };
       box.appendChild(lb);
     });
+    repeatNote();
+  }
+  var formRepeat = false;
+  function setRepeat(on) {
+    formRepeat = on; setSeg('fRepeat', 'r', on ? '1' : '0');
+    $('fDowsBox').classList.toggle('hidden', !on);
+    if (on && !$('fDows').children.length) drawDows($('fDate').value || todayStr());
+  }
+  function applyScope() {
+    var fut = formEv && formScope === 'future';
+    $('fRepeatBox').classList.toggle('hidden', !!formEv && !fut);
+    $('fRepeat').classList.toggle('hidden', !!formEv);
+    $('fDate').disabled = !!fut;
+    document.querySelector('label[for="fDate"]').textContent = fut ? '날짜 (이 날부터 바뀌어요)' : '날짜';
+    if (fut) { $('fDowsBox').classList.remove('hidden'); drawDows(formEv.date, formEv.days && formEv.days.length ? formEv.days : null); }
   }
   function openForm(e, pre) {
     formEv = e; formScope = 'one';
@@ -2032,10 +2070,11 @@ var SJ = (function () {
     $('fMin').value = e ? String(e.min) : (lastMin || '50');
     if (!$('fMin').value) { var o2 = el('option', '', (e ? e.min : 50) + '분'); o2.value = String(e ? e.min : 50); $('fMin').appendChild(o2); $('fMin').value = o2.value; }
     $('fMemo').value = e ? e.memo : '';
-    $('fRepeat').value = '0'; $('fDows').classList.add('hidden');
-    $('fRepeatBox').classList.toggle('hidden', !!e);
+    $('fDows').innerHTML = ''; setRepeat(false);
     $('fScopeBox').classList.toggle('hidden', !(e && e.series));
     setSeg('fScope', 's', 'one');
+    $('fDate').disabled = false;
+    applyScope();
     applyKind();
     msg('fMsg', '');
     openSheet('evForm');
@@ -2045,26 +2084,28 @@ var SJ = (function () {
     $('fNameBox').classList.toggle('hidden', formKind !== '개인');
   }
   Array.prototype.forEach.call($('fKind').children, function (b) { b.onclick = function () { formKind = b.dataset.k; setSeg('fKind', 'k', formKind); applyKind(); }; });
-  Array.prototype.forEach.call($('fScope').children, function (b) { b.onclick = function () { formScope = b.dataset.s; setSeg('fScope', 's', formScope); }; });
+  Array.prototype.forEach.call($('fScope').children, function (b) { b.onclick = function () { formScope = b.dataset.s; setSeg('fScope', 's', formScope); applyScope(); }; });
+  Array.prototype.forEach.call($('fRepeat').children, function (b) { b.onclick = function () { setRepeat(b.dataset.r === '1'); }; });
+  $('fStart').addEventListener('input', function () { if (!$('fDowsBox').classList.contains('hidden')) repeatNote(); });
   $('fTrainer').onchange = function () { fillFormMembers($('fTrainer').value); };
   $('fMember').onchange = function () {
     if (!isAdmin()) return;
     var m = S.members.filter(function (x) { return x.code === $('fMember').value; })[0];
     if (m && m.trainer && SV.teachers.some(function (t) { return t.name === m.trainer && t.active; })) $('fTrainer').value = m.trainer;
   };
-  $('fRepeat').onchange = function () {
-    var on = $('fRepeat').value !== '0';
-    $('fDows').classList.toggle('hidden', !on);
-    if (on) drawDows($('fDate').value || todayStr());
-  };
-  $('fDate').onchange = function () { if ($('fRepeat').value !== '0') drawDows($('fDate').value); };
+  $('fDate').onchange = function () { if (formRepeat && !formEv) drawDows($('fDate').value); };
   $('fSave').onclick = async function () {
     var body = { action: 'saveEvent', kind: formKind, code: $('fMember').value, title: $('fName').value.trim(),
                  date: $('fDate').value, start: $('fStart').value, min: +$('fMin').value, memo: $('fMemo').value.trim() };
     if (isAdmin()) body.trainer = $('fTrainer').value;
-    if (formEv) { body.id = formEv.id; body.scope = formScope; }
-    else if ($('fRepeat').value !== '0') {
-      body.repeat = { weeks: +$('fRepeat').value, days: Array.prototype.filter.call($('fDows').querySelectorAll('input'), function (c) { return c.checked; }).map(function (c) { return +c.value; }) };
+    if (formEv) {
+      body.id = formEv.id; body.scope = formScope;
+      if (formScope === 'future') {
+        body.date = formEv.date; body.days = pickedDows();
+        if (!body.days.length) { msg('fMsg', '반복할 요일을 골라 주세요.', 'err'); return; }
+      }
+    } else if (formRepeat) {
+      body.repeat = { days: pickedDows() };
       if (!body.repeat.days.length) { msg('fMsg', '반복할 요일을 골라 주세요.', 'err'); return; }
     }
     if (formKind === '수업' && !body.code) { msg('fMsg', '회원을 골라 주세요.', 'err'); return; }
@@ -2074,7 +2115,8 @@ var SJ = (function () {
       var j = await callApi(body);
       try { localStorage.setItem('sj_lastmin', String(body.min)); } catch (x) {}
       closeSheet('evForm');
-      SV.flash = formEv ? '일정을 고쳤어요' + (j.updated > 1 ? ' (' + j.updated + '개)' : '') + '.' : '일정 ' + j.created + '개를 넣었어요.';
+      SV.flash = j.days ? (formEv ? '이 날부터 ' : '') + '매주 ' + daysLabel(j.days) + ' ' + body.start + ' 반복' + (formEv ? '으로 바꿨어요.' : '을 만들었어요.')
+               : formEv ? '일정을 고쳤어요.' : '일정을 넣었어요.';
       if (!formEv) { SV.cur = body.date; }
       loadSchedule(true);
     } catch (e) { msg('fMsg', e.message, 'err'); }
