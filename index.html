@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.11.0">
+<meta name="sowel-version" content="0.12.0">
 <title>소웰 수업일지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -793,12 +793,41 @@ var SJ = (function () {
   }
 
   // ═════════ 로그인 ═════════
-  function applyLogin(j) {
+  // ───── 빠른 시작: 지난 로그인 화면을 폰에 기억했다가 바로 보여 주고, 뒤에서 확인 ─────
+  function saveSnap() {
+    if (!S.me || !store.get('token')) return;
+    try {
+      localStorage.setItem('sj_snap', JSON.stringify({ me: S.me, center: S.center, closing: S.closing, model: S.model,
+        pending: S.pending, members: S.members, at: Date.now() }));
+    } catch (e) {}
+  }
+  function readSnap() {
+    try {
+      var s = JSON.parse(localStorage.getItem('sj_snap') || 'null');
+      if (s && s.me && s.me.name && Date.now() - (s.at || 0) < 30 * 86400e3) return s;
+    } catch (e) {}
+    return null;
+  }
+  function clearSnap() { try { localStorage.removeItem('sj_snap'); localStorage.removeItem('sj_sched'); } catch (e) {} }
+
+  function applyLogin(j, bg) {
     if (j.token) { store.set('token', j.token); store.del('pin'); }
+    var prev = S.me ? S.me.name + '|' + S.me.role : '';
+    var inApp = !$('appView').classList.contains('hidden');
     S.me = j.me; S.center = j.center; S.closing = j.closing; S.apiKey = j.apiKey; S.model = j.model; S.pending = j.pending || 0;
+    if (j.needAccount) { clearSnap(); setMembers(j.members || []); showAccountSetup(); return; }
     setMembers(j.members || []);
-    if (j.needAccount) { showAccountSetup(); return; }
+    saveSnap();
+    if (bg && inApp && prev === S.me.name + '|' + S.me.role) { refreshApp(); return; }
     enterApp();
+  }
+  /** 뒤에서 받은 최신 정보로 화면 일부만 고치기 (보던 화면은 그대로) */
+  function refreshApp() {
+    $('whoName').textContent = S.me.name + (isAdmin() ? ' · 관리자' : ' 선생님');
+    $('myId').textContent = S.me.id || '-';
+    setAdminTabLabel();
+    $('pendingSection').classList.toggle('hidden', !isAdmin() || !S.pending);
+    if (!apiKey()) setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err');
   }
   async function doLogin(body, btn) {
     btn.disabled = true;
@@ -813,13 +842,14 @@ var SJ = (function () {
     } finally { btn.disabled = false; }
   }
   /** 이 폰에 남은 로그인으로 바로 들어가기 */
-  async function resume() {
-    msg('loginMsg', '로그인 중…');
+  async function resume(bg) {
+    if (!bg) msg('loginMsg', '로그인 중…');
     try {
       var j = await callApi({ action: store.get('token') ? 'me' : 'login', pin: store.get('token') ? undefined : store.get('pin') }, { login: true });
-      applyLogin(j);
+      applyLogin(j, bg);
     } catch (e) {
-      if (e.data && e.data.auth) { store.del('token'); store.del('pin'); }
+      if (e.data && e.data.auth) { store.del('token'); store.del('pin'); clearSnap(); S.me = null; }
+      else if (bg) return;          // 인터넷이 잠깐 끊긴 것 — 지난 화면 그대로 두기
       showLogin();
       msg('loginMsg', e.message, 'err');
     }
@@ -843,15 +873,15 @@ var SJ = (function () {
   }
   function showLogin() { hideAll(); $('loginView').classList.remove('hidden'); }
   function logout(reason) {
-    store.del('token'); store.del('pin');
-    S.me = null; currentTab = 'sched';
+    store.del('token'); store.del('pin'); clearSnap();
+    S.me = null; currentTab = 'sched'; SV.cache = {}; $('teacherList').innerHTML = '';
     $('pinIn').value = ''; $('pwIn').value = '';
     showLogin();
     msg('loginMsg', reason || '로그아웃했어요.', reason ? 'err' : 'ok');
   }
   $('logoutBtn').onclick = function () { logout(); };
 
-  function enterApp() {
+  function enterApp(fromSnap) {
     hideAll();
     $('appView').classList.remove('hidden');
     $('who').classList.remove('hidden');
@@ -870,9 +900,10 @@ var SJ = (function () {
     $('sKey').value = store.get('key') || '';
     $('sModel').value = store.get('model') || '';
     logsLoaded = false;
-    SV.loaded = ''; if (!isAdmin()) { SV.teachers = []; $('sTrainer').value = ''; }
+    if (!isAdmin()) { SV.teachers = []; $('sTrainer').value = ''; }
+    loadSchedSnap();
     showTab(currentTab);
-    if (!apiKey()) { if (isAdmin()) $('settingsBox').open = true; setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err'); }
+    if (!fromSnap && !apiKey()) { if (isAdmin()) $('settingsBox').open = true; setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err'); }
   }
 
   function setAdminTabLabel() {
@@ -902,6 +933,7 @@ var SJ = (function () {
     fillSelect($('memberSel'), S.members.length ? '회원을 고르세요' : none);
     fillSelect($('memberFilter'), '전체 회원');
     renderMemberList();
+    saveSnap();
   }
   function fillSelect(sel, firstLabel) {
     var keep = sel.value;
@@ -1250,7 +1282,7 @@ var SJ = (function () {
       var evId = logEvent && logEvent.code === code ? logEvent.id : '';
       var j = await callApi({ action: 'save', code: code, date: $('dateIn').value || todayStr(),
                               text: text, transcript: $('transcript').value, id: logId, exercises: exs, eventId: evId });
-      if (evId) { logEvent.status = '완료'; logEvent.logId = j.id; logEvent = null; $('evBanner').classList.add('hidden'); SV.loaded = ''; }
+      if (evId) { logEvent.status = '완료'; logEvent.logId = j.id; logEvent = null; $('evBanner').classList.add('hidden'); staleOthers('', false); saveSchedSnap(); }
       savedLink = j.link || memberLink(code); savedName = j.name || '';
       msg('saveMsg', (j.duplicate ? '이미 저장된 일지예요. 고치려면 [일지] 탭에서 수정해 주세요. ' : '') + savedName + '님 페이지에 저장했어요 ✅', 'ok');
       btn.textContent = '저장 완료';
@@ -1389,7 +1421,7 @@ var SJ = (function () {
   // ═════════ 관리 탭: 선생님 ═════════
   async function loadTeachers() {
     var list = $('teacherList');
-    list.innerHTML = '<div class="note">불러오는 중…</div>';
+    if (!list.children.length) list.innerHTML = '<div class="note">불러오는 중…</div>';   // 이미 있으면 그대로 두고 뒤에서 새로
     try {
       var j = await callApi({ action: 'teachers' });
       S.teachers = (j.teachers || []).filter(function (t) { return !t.pending; });
@@ -1818,28 +1850,98 @@ var SJ = (function () {
     return (a.getMonth() + 1) + '월 ' + a.getDate() + '일 – ' + (a.getMonth() !== z.getMonth() ? (z.getMonth() + 1) + '월 ' : '') + z.getDate() + '일';
   }
 
+  // ───── 일정 캐시: 주 단위로 받아 두고, 화면은 바로 그리고, 뒤에서 새로 받기 ─────
+  var FRESH_MS = 60 * 1000;          // 1분 안에 받은 주는 다시 안 받음
+  SV.cache = {}; SV.inflight = {}; SV.tKey = '';
+  function monOf(y) { var d = parseYmd(y); return addD(y, -((d.getDay() + 6) % 7)); }
+  function wKey(mon, tr) { return mon + '|' + (tr || ''); }
+  function curKey() { return wKey(monOf(SV.cur), $('sTrainer').value); }
+  function viewFor(y) { var mon = monOf(y || SV.cur); return { from: mon, to: addD(mon, 6), trainer: $('sTrainer').value }; }
+  function applyTeachers(list) {
+    if (!isAdmin() || !list) return;
+    var k = JSON.stringify(list);
+    if (k === SV.tKey) return;                // 바뀐 게 없으면 다시 안 그림
+    SV.tKey = k; SV.teachers = list;
+    var sel = $('sTrainer'), keep = sel.value;
+    sel.innerHTML = '<option value="">전체 선생님</option>';
+    list.forEach(function (t) { if (t.active) { var o = el('option', '', t.name); o.value = t.name; sel.appendChild(o); } });
+    sel.value = keep;
+    var lg = $('sLegend'); lg.innerHTML = '';
+    list.forEach(function (t) { if (!t.active) return; var s = el('span'); var i = el('i'); i.style.background = colorOf(t.name); s.appendChild(i); s.appendChild(document.createTextNode(t.name)); lg.appendChild(s); });
+  }
+  /** 서버가 돌려준 한 주(view)를 캐시에 넣기 */
+  function putWeek(v) {
+    if (!v || !v.from) return;
+    SV.cache[wKey(v.from, v.trainer)] = { events: v.events || [], at: Date.now() };
+    saveSchedSnap();
+  }
+  /** 다른 주는 '오래됨' 표시 (보이긴 하지만 열면 뒤에서 새로 받음). hard=true면 아예 지움 */
+  function staleOthers(keepKey, hard) {
+    Object.keys(SV.cache).forEach(function (k) { if (k === keepKey) return; if (hard) delete SV.cache[k]; else SV.cache[k].at = 0; });
+  }
+  function fetchWeek(mon, tr) {
+    var key = wKey(mon, tr);
+    if (SV.inflight[key]) return SV.inflight[key];
+    var p = callApi({ action: 'schedule', from: mon, to: addD(mon, 6), trainer: tr || '' }).then(function (j) {
+      applyTeachers(j.teachers);
+      putWeek({ from: mon, trainer: tr, events: j.events });
+      return SV.cache[key];
+    });
+    SV.inflight[key] = p;
+    p.then(function () { delete SV.inflight[key]; }, function () { delete SV.inflight[key]; });
+    return p;
+  }
+  function showCached() {
+    var c = SV.cache[curKey()];
+    SV.events = c ? c.events : [];
+    drawCal();
+    return c;
+  }
+  function prefetch() {
+    var mon = monOf(SV.cur), tr = $('sTrainer').value;
+    setTimeout(function () {
+      [-7, 7].forEach(function (n) {
+        var m = addD(mon, n), c = SV.cache[wKey(m, tr)];
+        if (!c || Date.now() - c.at > FRESH_MS) fetchWeek(m, tr).catch(function () {});
+      });
+    }, 300);
+  }
   async function loadSchedule(force) {
-    var days = range(), key = days[0] + '~' + days[days.length - 1] + '|' + $('sTrainer').value;
+    var days = range(), key = curKey(), tr = $('sTrainer').value;
     $('sRange').textContent = rangeLabel(days);
     Array.prototype.forEach.call($('sView').children, function (b) { b.classList.toggle('on', b.dataset.v === SV.view); });
-    if (!force && key === SV.loaded) { drawCal(); return; }
-    msg('sMsg', '불러오는 중…');
+    var c = showCached();
+    var flash = function () { if (SV.flash) { msg('sMsg', SV.flash, 'ok'); SV.flash = ''; } };
+    if (c && !force && Date.now() - c.at < FRESH_MS) { msg('sMsg', ''); flash(); prefetch(); return; }
+    if (!c) msg('sMsg', '불러오는 중…');
+    else { msg('sMsg', ''); flash(); }
     try {
-      var j = await callApi({ action: 'schedule', from: days[0], to: days[days.length - 1], trainer: $('sTrainer').value });
-      SV.events = j.events || []; SV.loaded = key;
-      if (isAdmin() && j.teachers) {
-        SV.teachers = j.teachers;
-        var sel = $('sTrainer'), keep = sel.value;
-        sel.innerHTML = '<option value="">전체 선생님</option>';
-        j.teachers.forEach(function (t) { if (t.active) { var o = el('option', '', t.name); o.value = t.name; sel.appendChild(o); } });
-        sel.value = keep;
-        var lg = $('sLegend'); lg.innerHTML = '';
-        j.teachers.forEach(function (t) { if (!t.active) return; var s = el('span'); var i = el('i'); i.style.background = colorOf(t.name); s.appendChild(i); s.appendChild(document.createTextNode(t.name)); lg.appendChild(s); });
-      }
-      msg('sMsg', '');
-      drawCal();
-      if (SV.flash) { msg('sMsg', SV.flash, 'ok'); SV.flash = ''; }
-    } catch (e) { msg('sMsg', e.message, 'err'); }
+      await fetchWeek(monOf(SV.cur), tr);
+      if (curKey() === key) { showCached(); if (!c) msg('sMsg', ''); flash(); }
+    } catch (e) { if (curKey() === key) msg('sMsg', c ? '최신 일정을 못 받았어요: ' + e.message : e.message, 'err'); }
+    prefetch();
+  }
+  /** 저장·상태·삭제 결과(view)로 바로 다시 그리기 — 왕복 1번 */
+  function afterWrite(j, hard) {
+    if (j && j.view) { putWeek(j.view); staleOthers(wKey(j.view.from, j.view.trainer), hard); }
+    else staleOthers('', hard);
+    loadSchedule(!(j && j.view));
+  }
+  // 열자마자 지난 화면 보이게: 이번 주 근처 일정만 폰에 기억
+  function saveSchedSnap() {
+    if (!S.me) return;
+    try {
+      var keep = {}, mon = monOf(todayStr());
+      Object.keys(SV.cache).forEach(function (k) { var m = k.split('|')[0]; if (m >= addD(mon, -7) && m <= addD(mon, 14)) keep[k] = { events: SV.cache[k].events, at: 0 }; });
+      localStorage.setItem('sj_sched', JSON.stringify({ who: S.me.name + '|' + S.me.role, cache: keep, teachers: isAdmin() ? SV.teachers : [] }));
+    } catch (e) {}
+  }
+  function loadSchedSnap() {
+    SV.cache = {}; SV.inflight = {}; SV.tKey = '';
+    try {
+      var s = JSON.parse(localStorage.getItem('sj_sched') || 'null');
+      if (s && S.me && s.who === S.me.name + '|' + S.me.role) { SV.cache = s.cache || {}; if (s.teachers && s.teachers.length) applyTeachers(s.teachers); }
+    } catch (e) {}
   }
 
   function drawCal() {
@@ -1926,7 +2028,7 @@ var SJ = (function () {
   $('sNext').onclick = function () { SV.cur = addD(SV.cur, SV.view === 'day' ? 1 : 7); loadSchedule(); };
   $('sToday').onclick = function () { SV.cur = todayStr(); loadSchedule(); };
   Array.prototype.forEach.call($('sView').children, function (b) { b.onclick = function () { SV.view = b.dataset.v; saveView(); loadSchedule(); }; });
-  $('sTrainer').onchange = function () { loadSchedule(true); };
+  $('sTrainer').onchange = function () { loadSchedule(); };
   $('sAdd').onclick = function () {
     var now = new Date(), m = Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30;
     openForm(null, { date: SV.view === 'day' ? SV.cur : todayStr(), start: minToHm(Math.min(m, 22 * 60)) });
@@ -1957,9 +2059,19 @@ var SJ = (function () {
     ['예정', '완료', '노쇼', '취소'].forEach(function (s) {
       var b = el('button', s === e.status ? 'on' : '', s);
       b.onclick = async function () {
-        msg('dMsg', '');
-        try { await callApi({ action: 'setEventStatus', id: e.id, status: s }); e.status = s; openDetail(e); drawCal(); }
-        catch (err) { msg('dMsg', err.message, 'err'); }
+        if (s === e.status) return;
+        var prev = e.status, seq = (SV.stSeq = (SV.stSeq || 0) + 1);
+        function setSt(v) { e.status = v; SV.events.forEach(function (x) { if (x.id === e.id) x.status = v; }); }
+        setSt(s); openDetail(e); drawCal();          // 누르는 즉시 반영
+        try {
+          var j = await callApi({ action: 'setEventStatus', id: e.id, status: s, view: viewFor() });
+          if (j.view && seq === SV.stSeq) { putWeek(j.view); if (curKey() === wKey(j.view.from, j.view.trainer)) showCached(); }
+        } catch (err) {
+          if (seq !== SV.stSeq) return;
+          setSt(prev); drawCal();
+          if (curEv === e) { openDetail(e); msg('dMsg', '저장하지 못해 되돌렸어요: ' + err.message, 'err'); }
+          else msg('sMsg', '상태를 저장하지 못해 되돌렸어요: ' + err.message, 'err');
+        }
       };
       st.appendChild(b);
     });
@@ -1985,10 +2097,12 @@ var SJ = (function () {
   $('dDelFuture').onclick = function () { delEvent('future'); };
   async function delEvent(scope) {
     try {
-      var j = await callApi({ action: 'deleteEvent', id: curEv.id, scope: scope });
+      var gone = curEv;
+      msg('dMsg', '지우는 중…');
+      var j = await callApi({ action: 'deleteEvent', id: gone.id, scope: scope, view: viewFor() });
       closeSheet('evDetail'); $('dDel').dataset.sure = ''; $('dDel').textContent = '삭제';
       SV.flash = j.ended ? '반복을 끝냈어요. 그 전 일정과 완료 기록은 그대로예요.' : '일정을 지웠어요.';
-      loadSchedule(true);
+      afterWrite(j, scope === 'future');
     } catch (e) { msg('dMsg', e.message, 'err'); }
   }
 
@@ -2112,13 +2226,15 @@ var SJ = (function () {
     if (formKind === '개인' && !body.title) { msg('fMsg', '일정 이름을 적어 주세요.', 'err'); return; }
     var b = $('fSave'); b.disabled = true; b.textContent = '저장 중…';
     try {
+      var target = formEv ? SV.cur : body.date;
+      body.view = viewFor(target);
       var j = await callApi(body);
       try { localStorage.setItem('sj_lastmin', String(body.min)); } catch (x) {}
       closeSheet('evForm');
       SV.flash = j.days ? (formEv ? '이 날부터 ' : '') + '매주 ' + daysLabel(j.days) + ' ' + body.start + ' 반복' + (formEv ? '으로 바꿨어요.' : '을 만들었어요.')
                : formEv ? '일정을 고쳤어요.' : '일정을 넣었어요.';
-      if (!formEv) { SV.cur = body.date; }
-      loadSchedule(true);
+      SV.cur = target;
+      afterWrite(j, !!(body.repeat || body.scope === 'future'));
     } catch (e) { msg('fMsg', e.message, 'err'); }
     finally { b.disabled = false; b.textContent = '저장'; }
   };
@@ -2169,7 +2285,14 @@ var SJ = (function () {
   }, function (v) { pendingVer = v; $('updBar').classList.remove('hidden'); });
   $('updBtn').onclick = function () { if (!SOWEL_UPD.reloadTo(pendingVer)) location.reload(); };
 
-  if (store.get('token') || store.get('pin')) { hideAll(); resume(); }
+  var snap0 = store.get('token') ? readSnap() : null;
+  if (snap0) {
+    // 지난 화면 바로 열기 → 로그인 확인·최신 정보는 뒤에서 (일정도 동시에 받음)
+    S.me = snap0.me; S.center = snap0.center; S.closing = snap0.closing; S.model = snap0.model; S.pending = snap0.pending || 0;
+    setMembers(snap0.members || []);
+    enterApp(true);
+    resume(true);
+  } else if (store.get('token') || store.get('pin')) { hideAll(); resume(); }
   else showLogin();
 })();
 </script>
