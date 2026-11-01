@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.14.0">
+<meta name="sowel-version" content="0.14.1">
 <title>소웰 수업일지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -1766,7 +1766,7 @@ var SJ = (function () {
   function validChip(code) {
     var v = S.valid[code]; if (!v) return null;
     var n = dLeft(v.until);
-    return el('span', 'ses' + (n < 0 ? ' out' : n <= 14 ? ' low' : ' none'), validText(v));
+    return el('span', 'ses' + (n < 0 ? ' out' : n <= 30 ? ' low' : ' none'), validText(v));
   }
   function sesChip(code, full) {
     var s = S.sess[code];
@@ -1786,11 +1786,13 @@ var SJ = (function () {
     var box = $('lowBox'); if (!box) return;
     var low = S.members.filter(function (m) { var s = S.sess[m.code]; return s && s.left <= 3; })
       .sort(function (a, b) { return S.sess[a.code].left - S.sess[b.code].left; });
-    var exp = S.members.filter(function (m) { var v = S.valid[m.code]; return v && dLeft(v.until) <= 14 && dLeft(v.until) >= -30; })
-      .sort(function (a, b) { return S.valid[a.code].until < S.valid[b.code].until ? -1 : 1; });
+    var byDate = function (a, b) { return S.valid[a.code].until < S.valid[b.code].until ? -1 : 1; };
+    var soon = S.members.filter(function (m) { var v = S.valid[m.code]; return v && dLeft(v.until) >= 0 && dLeft(v.until) <= 30; }).sort(byDate);
+    var gone = S.members.filter(function (m) { var v = S.valid[m.code]; return v && dLeft(v.until) < 0 && dLeft(v.until) >= -30; }).sort(byDate);
     var lines = [];
     if (low.length) lines.push('재등록 확인 · ' + low.map(function (m) { return m.name + ' ' + sesText(S.sess[m.code]); }).join(' · '));
-    if (exp.length) lines.push('유효기간 임박 · ' + exp.map(function (m) { return m.name + ' ' + validText(S.valid[m.code]); }).join(' · '));
+    if (soon.length) lines.push('유효기간 임박 · ' + soon.map(function (m) { return m.name + ' ' + validText(S.valid[m.code]); }).join(' · '));
+    if (gone.length) lines.push('만료 · ' + gone.map(function (m) { return m.name + ' ' + validText(S.valid[m.code]); }).join(' · '));
     if (isAdmin() && S.mgmt && S.mgmt.error) lines.push('경영관리 시트를 읽지 못했어요: ' + S.mgmt.error);
     box.classList.toggle('hidden', !lines.length);
     box.style.whiteSpace = 'pre-line';
@@ -1824,7 +1826,7 @@ var SJ = (function () {
     } else if (isAdmin()) box.appendChild(el('div', 'note', '등록된 횟수가 없어요. [관리] 탭 회원 목록의 [횟수]에서 등록해요.'));
     if (j.valid) {
       var nv = dLeft(j.valid.until), l2 = el('div', ''); l2.appendChild(document.createTextNode('유효기간 '));
-      var vc = el('span', 'ses' + (nv < 0 ? ' out' : nv <= 14 ? ' low' : ' none'), validText(j.valid, true)); vc.style.marginLeft = '0';
+      var vc = el('span', 'ses' + (nv < 0 ? ' out' : nv <= 30 ? ' low' : ' none'), validText(j.valid, true)); vc.style.marginLeft = '0';
       l2.appendChild(vc);
       if (box.children.length) l2.style.marginTop = '6px';
       box.appendChild(l2);
