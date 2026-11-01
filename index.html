@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.14.1">
+<meta name="sowel-version" content="0.15.0">
 <title>소웰 수업일지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -194,6 +194,9 @@
   .list .item.wrap{flex-wrap:wrap;row-gap:6px}
   .list .item.wrap>.grow{flex:1 0 100%}
   .regbox{width:100%;background:#FBF7F1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px}
+  .regbox input{min-width:0;width:100%;box-sizing:border-box}
+  .regbox .grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .regbox .rbt{font-size:13px;font-weight:700;margin-bottom:6px}
   .regbox .grid3{display:grid;grid-template-columns:70px 1fr;gap:8px}
   .reghist{font-size:13px;margin-top:8px}
   .reghist div{display:flex;gap:8px;align-items:center;padding:4px 0;border-top:1px dashed var(--line)}
@@ -1850,54 +1853,110 @@ var SJ = (function () {
     if (nx && nx.classList && nx.classList.contains('regbox')) { nx.remove(); if (!keep) { openReg = ''; return; } }
     openReg = m.code;
     var box = el('div', 'regbox');
-    box.innerHTML = '<div class="grid3"><input type="number" inputmode="numeric" min="-100" max="200" placeholder="횟수" aria-label="횟수">' +
-      '<input type="text" maxlength="100" placeholder="메모 (예: 20회권 재등록)" aria-label="메모"></div>' +
-      '<div class="grid2" style="margin-top:8px"><div><label style="margin-top:0;font-size:12px">등록일</label><input type="date" aria-label="등록일"></div>' +
-      '<div><label style="margin-top:0;font-size:12px">만료일 (선택)</label><input type="date" aria-label="만료일"></div></div>' +
-      '<div class="row" style="margin-top:8px"><span class="note vnote" style="flex:1;margin:0"></span><button class="btn terra small">등록</button></div>' +
-      '<div class="msg"></div><div class="reghist note">불러오는 중…</div>';
+    box.innerHTML =
+      '<div class="rbt">수업 횟수 <span class="ses none rnow" style="margin-left:4px"></span></div>' +
+      '<div class="seg rmode" style="margin-bottom:8px"><button data-m="new" class="on">새 이용권 등록</button><button data-m="set">횟수 직접 맞추기</button></div>' +
+      '<div class="rnew"><div class="grid3"><input type="number" inputmode="numeric" min="1" max="300" placeholder="횟수" aria-label="횟수">' +
+      '<input type="text" maxlength="100" placeholder="메모 (예: 24회권 재등록)" aria-label="메모"></div>' +
+      '<div class="row" style="margin-top:8px"><input type="date" aria-label="등록일" style="flex:1"><button class="btn terra small rgo">등록</button></div>' +
+      '<p class="note" style="margin:6px 0 0">남아 있던 횟수는 그대로 이어져요. 예: 2회 남았을 때 20회 등록 → 남은 22회 (22회 중)</p></div>' +
+      '<div class="rset hidden"><div class="grid2"><div><label style="margin-top:0;font-size:12px">총 횟수 (이용권)</label><input type="number" inputmode="numeric" min="1" max="300" aria-label="총 횟수"></div>' +
+      '<div><label style="margin-top:0;font-size:12px">지금 남은 횟수</label><input type="number" inputmode="numeric" min="0" max="300" aria-label="남은 횟수"></div></div>' +
+      '<div class="row" style="margin-top:8px"><span class="note" style="flex:1;margin:0">오늘 기준으로 맞춰요. 회원 페이지에 "남은 10회 (24회 중)"처럼 보여요.</span><button class="btn terra small sgo">저장</button></div></div>' +
+      '<div class="msg rmsg"></div><div class="reghist note">불러오는 중…</div>' +
+      '<div class="rbt" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">유효기간</div>' +
+      '<div class="note vsrc" style="margin:0 0 6px"></div>' +
+      '<div class="grid2"><div><label style="margin-top:0;font-size:12px">시작일</label><input type="date" aria-label="시작일" class="vs"></div>' +
+      '<div><label style="margin-top:0;font-size:12px">만료일</label><input type="date" aria-label="만료일" class="vu"></div></div>' +
+      '<div class="row" style="margin-top:8px"><span class="note vnote" style="flex:1;margin:0"></span><button class="btn ghost small vgo">유효기간 저장</button></div>' +
+      '<div class="msg vmsg"></div>';
     row.parentNode.insertBefore(box, row.nextSibling);
-    var ins = box.querySelectorAll('input'), nIn = ins[0], memoIn = ins[1], dIn = ins[2], uIn = ins[3], go = box.querySelector('button.terra'), mg = box.querySelector('.msg'), hist = box.querySelector('.reghist'), vn = box.querySelector('.vnote');
+    var q2 = function (sel) { return box.querySelector(sel); };
+    var nIn = q2('input[aria-label=횟수]'), memoIn = q2('input[aria-label=메모]'), dIn = q2('input[aria-label=등록일]'), go = q2('.rgo'),
+        mg = q2('.rmsg'), hist = q2('.reghist'), vn = q2('.vnote'), vsrc = q2('.vsrc'), vs = q2('.vs'), vu = q2('.vu'), vgo = q2('.vgo'), vmg = q2('.vmsg'),
+        tIn = q2('input[aria-label="총 횟수"]'), lIn = q2('input[aria-label="남은 횟수"]'), sgo = q2('.sgo'), rnow = q2('.rnow');
     dIn.value = todayStr();
+    Array.prototype.forEach.call(q2('.rmode').children, function (b) {
+      b.onclick = function () {
+        Array.prototype.forEach.call(q2('.rmode').children, function (x) { x.classList.toggle('on', x === b); });
+        q2('.rnew').classList.toggle('hidden', b.dataset.m !== 'new'); q2('.rset').classList.toggle('hidden', b.dataset.m !== 'set');
+        msg2(mg, '');
+      };
+    });
+    function chips() {
+      var nmb2 = row.querySelector('b.grow');
+      Array.prototype.forEach.call(nmb2.querySelectorAll('.ses'), function (x) { x.remove(); });
+      var c1 = sesChip(m.code, true), c2 = validChip(m.code); if (c1) nmb2.appendChild(c1); if (c2) nmb2.appendChild(c2);
+      renderLow(); saveSnap();
+    }
     function draw(j) {
       if (j.sessions) S.sess[m.code] = j.sessions; else delete S.sess[m.code];
       if (j.valid) S.valid[m.code] = j.valid; else delete S.valid[m.code];
+      if (j.mgmt) S.mgmt = j.mgmt;
+      rnow.textContent = j.sessions ? sesText(j.sessions) : '등록 없음';
+      rnow.className = 'ses rnow' + (j.sessions ? (j.sessions.left <= 0 ? ' out' : j.sessions.left <= 3 ? ' low' : '') : ' none');
+      if (j.sessions) { tIn.value = j.sessions.lastN || ''; lIn.value = Math.max(0, j.sessions.left); }
       var mg0 = j.mgmt || {};
-      vn.textContent = j.valid ? '유효기간 ' + validText(j.valid, true) + (j.valid.src === '경영관리' ? ' · 경영관리' : '')
-        : mg0.on && !mg0.error ? '경영관리 [회원명부]에서 "' + m.name + '" 이름을 못 찾았어요' : '유효기간 없음';
+      vn.textContent = j.valid ? validText(j.valid, true) : '유효기간 없음';
+      vs.value = j.valid && j.valid.start || ''; vu.value = j.valid && j.valid.until || '';
+      vsrc.textContent = mg0.on && !mg0.error
+        ? (j.valid && j.valid.src === '경영관리' ? '경영관리 시트 [회원명부]와 연결돼 있어요. 여기서 바꾸면 경영관리에도 바로 바뀌어요.'
+                                                 : '경영관리 [회원명부]에서 "' + m.name + '" 이름을 못 찾았어요. 여기서 저장하면 수업일지에만 저장돼요.')
+        : mg0.on ? '경영관리 시트를 읽지 못했어요: ' + mg0.error
+        : '수업일지에 저장돼요. ([설정] 탭에 경영관리 시트 주소를 넣으면 경영관리와 같이 바뀌어요)';
       hist.innerHTML = '';
       if (!j.regs || !j.regs.length) { hist.textContent = '아직 등록 내역이 없어요. 처음이면 지금 남은 횟수를 오늘 날짜로 등록해 주세요.'; return; }
       j.regs.forEach(function (r) {
         var line = el('div');
         line.appendChild(el('span', 'd', r.date));
-        line.appendChild(el('b', '', (r.n > 0 ? '+' : '') + r.n + '회'));
-        line.appendChild(el('span', 'm', (r.memo || '') + (r.until ? (r.memo ? ' · ' : '') + '~' + r.until.slice(2).replace(/-/g, '.') : '')));
+        line.appendChild(el('b', '', (r.n > 0 ? '+' : '') + r.n + '회' + (r.pkg ? ' · 총 ' + r.pkg : '')));
+        line.appendChild(el('span', 'm', r.memo || ''));
         var del = el('button', 'link', '지우기');
         del.onclick = async function () {
           if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = '정말 지우기'; return; }
-          try { var k = await callApi({ action: 'deleteSessions', id: r.id }); draw(k); refreshSessionsSoon(); msg2('지웠어요.', 'ok'); }
-          catch (e) { msg2(e.message, 'err'); }
+          try { var k = await callApi({ action: 'deleteSessions', id: r.id }); draw(k); chips(); msg2(mg, '지웠어요.', 'ok'); }
+          catch (e) { msg2(mg, e.message, 'err'); }
         };
         line.appendChild(del);
         hist.appendChild(line);
       });
     }
-    function msg2(t, k) { mg.className = 'msg' + (k ? ' ' + k : ''); mg.textContent = t || ''; }
+    function msg2(box2, t, k) { box2.classList.remove('ok', 'err'); if (k) box2.classList.add(k); box2.textContent = t || ''; }
     go.onclick = async function () {
       var n = Math.round(Number(nIn.value));
-      if (!n) { msg2('횟수를 적어 주세요. 줄일 때는 -1처럼 적어요.', 'err'); return; }
+      if (!(n >= 1)) { msg2(mg, '등록할 횟수를 적어 주세요. 남은 횟수를 고칠 때는 [횟수 직접 맞추기]를 써요.', 'err'); return; }
       go.disabled = true;
       try {
-        var j = await callApi({ action: 'addSessions', code: m.code, n: n, date: dIn.value, memo: memoIn.value.trim(), until: uIn.value });
-        nIn.value = ''; memoIn.value = ''; uIn.value = '';
-        draw(j); delete S.info[m.code]; saveSnap();
-        msg2(m.name + '님 ' + (n > 0 ? n + '회 등록' : (-n) + '회 줄임') + ' → ' + sesText(j.sessions), 'ok');
-        var nmb2 = row.querySelector('b.grow');
-        Array.prototype.forEach.call(nmb2.querySelectorAll('.ses'), function (x) { x.remove(); });
-        var c1 = sesChip(m.code, true), c2 = validChip(m.code); if (c1) nmb2.appendChild(c1); if (c2) nmb2.appendChild(c2);
-        renderLow();
-      } catch (e) { msg2(e.message, 'err'); }
+        var j = await callApi({ action: 'addSessions', code: m.code, n: n, date: dIn.value, memo: memoIn.value.trim() });
+        nIn.value = ''; memoIn.value = '';
+        draw(j); delete S.info[m.code]; chips();
+        msg2(mg, m.name + '님 ' + n + '회 등록 → ' + sesText(j.sessions), 'ok');
+      } catch (e) { msg2(mg, e.message, 'err'); }
       finally { go.disabled = false; }
+    };
+    sgo.onclick = async function () {
+      var t = Math.round(Number(tIn.value)), l = lIn.value === '' ? NaN : Math.round(Number(lIn.value));
+      if (!(t >= 1)) { msg2(mg, '총 횟수를 적어 주세요.', 'err'); return; }
+      if (!(l >= 0)) { msg2(mg, '지금 남은 횟수를 적어 주세요.', 'err'); return; }
+      if (l > t) { msg2(mg, '남은 횟수가 총 횟수보다 많아요.', 'err'); return; }
+      sgo.disabled = true;
+      try {
+        var j = await callApi({ action: 'addSessions', mode: 'set', code: m.code, total: t, left: l });
+        draw(j); delete S.info[m.code]; chips();
+        msg2(mg, m.name + '님 → ' + sesText(j.sessions) + ' 로 맞췄어요.', 'ok');
+      } catch (e) { msg2(mg, e.message, 'err'); }
+      finally { sgo.disabled = false; }
+    };
+    vgo.onclick = async function () {
+      if (!vu.value) { msg2(vmg, '만료일을 넣어 주세요.', 'err'); return; }
+      if (vs.value && vu.value < vs.value) { msg2(vmg, '만료일이 시작일보다 앞이에요.', 'err'); return; }
+      vgo.disabled = true; msg2(vmg, '저장 중…');
+      try {
+        var j = await callApi({ action: 'setValidity', code: m.code, start: vs.value, until: vu.value });
+        draw(j); delete S.info[m.code]; chips();
+        msg2(vmg, j.note || (m.name + '님 유효기간을 ' + validText(j.valid, true) + '로 바꿨어요' + (j.saved === '경영관리' ? ' (경영관리에도 저장)' : '') + '.'), j.note ? '' : 'ok');
+      } catch (e) { msg2(vmg, e.message, 'err'); }
+      finally { vgo.disabled = false; }
     };
     try { draw(await callApi({ action: 'memberInfo', code: m.code })); } catch (e) { hist.textContent = e.message; }
   }
