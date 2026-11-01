@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.13.1">
+<meta name="sowel-version" content="0.14.0">
 <title>소웰 수업일지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -838,7 +838,7 @@ var SJ = (function () {
     if (!S.me || !store.get('token')) return;
     try {
       localStorage.setItem('sj_snap', JSON.stringify({ me: S.me, center: S.center, closing: S.closing, model: S.model,
-        pending: S.pending, members: S.members, sess: S.sess || {}, at: Date.now() }));
+        pending: S.pending, members: S.members, sess: S.sess || {}, valid: S.valid || {}, at: Date.now() }));
     } catch (e) {}
   }
   function readSnap() {
@@ -914,7 +914,7 @@ var SJ = (function () {
   function showLogin() { hideAll(); $('loginView').classList.remove('hidden'); }
   function logout(reason) {
     store.del('token'); store.del('pin'); clearSnap();
-    S.me = null; currentTab = 'sched'; SV.cache = {}; $('teacherList').innerHTML = ''; S.sess = {}; S.info = {}; openReg = '';
+    S.me = null; currentTab = 'sched'; SV.cache = {}; $('teacherList').innerHTML = ''; S.sess = {}; S.valid = {}; S.info = {}; openReg = '';
     $('pinIn').value = ''; $('pwIn').value = '';
     showLogin();
     msg('loginMsg', reason || '로그아웃했어요.', reason ? 'err' : 'ok');
@@ -1713,8 +1713,9 @@ var SJ = (function () {
     if (isAdmin() && noTrainer) $('memberListTitle').textContent += ' — 담당 없음 ' + noTrainer + '명';
     S.members.forEach(function (m) {
       var row = el('div', 'item' + (isAdmin() ? ' wrap' : ''));
-      var nmb = el('b', 'grow', m.name), sc = sesChip(m.code, true);
+      var nmb = el('b', 'grow', m.name), sc = sesChip(m.code, true), vc0 = validChip(m.code);
       if (sc) nmb.appendChild(sc);
+      if (vc0) nmb.appendChild(vc0);
       row.appendChild(nmb);
       if (isAdmin()) {
         var ts = el('select', 'mini'); ts.setAttribute('aria-label', m.name + ' 담당');
@@ -1747,12 +1748,25 @@ var SJ = (function () {
   }
 
   // ═════════ 잔여 횟수 · 숙제 · 월별 수업 수 ═════════
-  S.sess = {}; S.info = {}; S.infoBusy = {};
+  S.sess = {}; S.info = {}; S.infoBusy = {}; S.valid = {}; S.mgmt = null;
   var sessTimer = null, openReg = '';
   function sesText(s) {
     if (s.left < 0) return '초과 ' + (-s.left) + '회';
     if (s.left === 0) return '횟수 소진';
     return '남은 ' + s.left + (s.lastN ? '/' + s.lastN : '') + '회';
+  }
+  /** 유효기간 '~11.05 (D-4)' */
+  function dLeft(y) { var d = parseYmd(y), t = parseYmd(todayStr()); return Math.round((d - t) / 86400000); }
+  function validText(v, long) {
+    if (!v || !v.until) return '';
+    var n = dLeft(v.until), d = v.until.replace(/-/g, '.');
+    if (n < 0) return d + ' 만료';
+    return (long ? d : d.slice(5)) + '까지 (' + (n === 0 ? 'D-DAY' : 'D-' + n) + ')';
+  }
+  function validChip(code) {
+    var v = S.valid[code]; if (!v) return null;
+    var n = dLeft(v.until);
+    return el('span', 'ses' + (n < 0 ? ' out' : n <= 14 ? ' low' : ' none'), validText(v));
   }
   function sesChip(code, full) {
     var s = S.sess[code];
@@ -1762,7 +1776,7 @@ var SJ = (function () {
   async function loadSessions() {
     try {
       var j = await callApi({ action: 'sessions' });
-      S.sess = j.sessions || {}; saveSnap();
+      S.sess = j.sessions || {}; S.valid = j.valid || {}; S.mgmt = j.mgmt || null; saveSnap();
       renderMemberList();
       if (currentTab === 'sched') drawCal();
     } catch (e) {}
@@ -1772,8 +1786,15 @@ var SJ = (function () {
     var box = $('lowBox'); if (!box) return;
     var low = S.members.filter(function (m) { var s = S.sess[m.code]; return s && s.left <= 3; })
       .sort(function (a, b) { return S.sess[a.code].left - S.sess[b.code].left; });
-    box.classList.toggle('hidden', !low.length);
-    box.textContent = low.length ? '재등록 확인 · ' + low.map(function (m) { return m.name + ' ' + sesText(S.sess[m.code]); }).join(' · ') : '';
+    var exp = S.members.filter(function (m) { var v = S.valid[m.code]; return v && dLeft(v.until) <= 14 && dLeft(v.until) >= -30; })
+      .sort(function (a, b) { return S.valid[a.code].until < S.valid[b.code].until ? -1 : 1; });
+    var lines = [];
+    if (low.length) lines.push('재등록 확인 · ' + low.map(function (m) { return m.name + ' ' + sesText(S.sess[m.code]); }).join(' · '));
+    if (exp.length) lines.push('유효기간 임박 · ' + exp.map(function (m) { return m.name + ' ' + validText(S.valid[m.code]); }).join(' · '));
+    if (isAdmin() && S.mgmt && S.mgmt.error) lines.push('경영관리 시트를 읽지 못했어요: ' + S.mgmt.error);
+    box.classList.toggle('hidden', !lines.length);
+    box.style.whiteSpace = 'pre-line';
+    box.textContent = lines.join('\n');
   }
   /** 일정 상세: 잔여 횟수 + 숙제 체크 */
   async function showInfo(code, force) {
@@ -1787,6 +1808,7 @@ var SJ = (function () {
       var j = await callApi({ action: 'memberInfo', code: code });
       S.info[code] = { data: j, at: Date.now() };
       if (j.sessions) S.sess[code] = j.sessions; else delete S.sess[code];
+      if (j.valid) S.valid[code] = j.valid; else delete S.valid[code];
       if (curEv && curEv.code === code && !$('evDetail').classList.contains('hidden')) renderInfo(j);
     } catch (e) {}
     finally { S.infoBusy[code] = false; }
@@ -1800,10 +1822,17 @@ var SJ = (function () {
       if (j.sessions.left <= 3) l1.appendChild(el('span', 'note', j.sessions.left <= 0 ? ' — 재등록이 필요해요' : ' — 재등록 시기예요'));
       box.appendChild(l1);
     } else if (isAdmin()) box.appendChild(el('div', 'note', '등록된 횟수가 없어요. [관리] 탭 회원 목록의 [횟수]에서 등록해요.'));
+    if (j.valid) {
+      var nv = dLeft(j.valid.until), l2 = el('div', ''); l2.appendChild(document.createTextNode('유효기간 '));
+      var vc = el('span', 'ses' + (nv < 0 ? ' out' : nv <= 14 ? ' low' : ' none'), validText(j.valid, true)); vc.style.marginLeft = '0';
+      l2.appendChild(vc);
+      if (box.children.length) l2.style.marginTop = '6px';
+      box.appendChild(l2);
+    }
     if (j.hw && j.hw.items.length) {
       var d = parseYmd(j.hw.date);
       var h = el('div', '', '숙제 · ' + (d.getMonth() + 1) + '/' + d.getDate() + ' 수업부터 ' + j.hw.days + '일 동안');
-      h.style.marginTop = j.sessions || isAdmin() ? '8px' : '0'; h.style.fontWeight = '700';
+      h.style.marginTop = box.children.length ? '8px' : '0'; h.style.fontWeight = '700';
       box.appendChild(h);
       j.hw.items.forEach(function (it) {
         var r = el('div', 'hwl'); r.appendChild(el('span', '', it.t));
@@ -1821,20 +1850,26 @@ var SJ = (function () {
     var box = el('div', 'regbox');
     box.innerHTML = '<div class="grid3"><input type="number" inputmode="numeric" min="-100" max="200" placeholder="횟수" aria-label="횟수">' +
       '<input type="text" maxlength="100" placeholder="메모 (예: 20회권 재등록)" aria-label="메모"></div>' +
-      '<div class="row" style="margin-top:8px"><input type="date" aria-label="등록일" style="flex:1"><button class="btn terra small">등록</button></div>' +
+      '<div class="grid2" style="margin-top:8px"><div><label style="margin-top:0;font-size:12px">등록일</label><input type="date" aria-label="등록일"></div>' +
+      '<div><label style="margin-top:0;font-size:12px">만료일 (선택)</label><input type="date" aria-label="만료일"></div></div>' +
+      '<div class="row" style="margin-top:8px"><span class="note vnote" style="flex:1;margin:0"></span><button class="btn terra small">등록</button></div>' +
       '<div class="msg"></div><div class="reghist note">불러오는 중…</div>';
     row.parentNode.insertBefore(box, row.nextSibling);
-    var ins = box.querySelectorAll('input'), nIn = ins[0], memoIn = ins[1], dIn = ins[2], go = box.querySelector('button'), mg = box.querySelector('.msg'), hist = box.querySelector('.reghist');
+    var ins = box.querySelectorAll('input'), nIn = ins[0], memoIn = ins[1], dIn = ins[2], uIn = ins[3], go = box.querySelector('button.terra'), mg = box.querySelector('.msg'), hist = box.querySelector('.reghist'), vn = box.querySelector('.vnote');
     dIn.value = todayStr();
     function draw(j) {
       if (j.sessions) S.sess[m.code] = j.sessions; else delete S.sess[m.code];
+      if (j.valid) S.valid[m.code] = j.valid; else delete S.valid[m.code];
+      var mg0 = j.mgmt || {};
+      vn.textContent = j.valid ? '유효기간 ' + validText(j.valid, true) + (j.valid.src === '경영관리' ? ' · 경영관리' : '')
+        : mg0.on && !mg0.error ? '경영관리 [회원명부]에서 "' + m.name + '" 이름을 못 찾았어요' : '유효기간 없음';
       hist.innerHTML = '';
       if (!j.regs || !j.regs.length) { hist.textContent = '아직 등록 내역이 없어요. 처음이면 지금 남은 횟수를 오늘 날짜로 등록해 주세요.'; return; }
       j.regs.forEach(function (r) {
         var line = el('div');
         line.appendChild(el('span', 'd', r.date));
         line.appendChild(el('b', '', (r.n > 0 ? '+' : '') + r.n + '회'));
-        line.appendChild(el('span', 'm', r.memo || ''));
+        line.appendChild(el('span', 'm', (r.memo || '') + (r.until ? (r.memo ? ' · ' : '') + '~' + r.until.slice(2).replace(/-/g, '.') : '')));
         var del = el('button', 'link', '지우기');
         del.onclick = async function () {
           if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = '정말 지우기'; return; }
@@ -1851,11 +1886,13 @@ var SJ = (function () {
       if (!n) { msg2('횟수를 적어 주세요. 줄일 때는 -1처럼 적어요.', 'err'); return; }
       go.disabled = true;
       try {
-        var j = await callApi({ action: 'addSessions', code: m.code, n: n, date: dIn.value, memo: memoIn.value.trim() });
-        nIn.value = ''; memoIn.value = '';
+        var j = await callApi({ action: 'addSessions', code: m.code, n: n, date: dIn.value, memo: memoIn.value.trim(), until: uIn.value });
+        nIn.value = ''; memoIn.value = ''; uIn.value = '';
         draw(j); delete S.info[m.code]; saveSnap();
         msg2(m.name + '님 ' + (n > 0 ? n + '회 등록' : (-n) + '회 줄임') + ' → ' + sesText(j.sessions), 'ok');
-        var chip = row.querySelector('.ses'); if (chip) { var nc = sesChip(m.code, true); chip.replaceWith(nc); }
+        var nmb2 = row.querySelector('b.grow');
+        Array.prototype.forEach.call(nmb2.querySelectorAll('.ses'), function (x) { x.remove(); });
+        var c1 = sesChip(m.code, true), c2 = validChip(m.code); if (c1) nmb2.appendChild(c1); if (c2) nmb2.appendChild(c2);
         renderLow();
       } catch (e) { msg2(e.message, 'err'); }
       finally { go.disabled = false; }
@@ -2505,7 +2542,7 @@ var SJ = (function () {
   var snap0 = store.get('token') ? readSnap() : null;
   if (snap0) {
     // 지난 화면 바로 열기 → 로그인 확인·최신 정보는 뒤에서 (일정도 동시에 받음)
-    S.me = snap0.me; S.center = snap0.center; S.closing = snap0.closing; S.model = snap0.model; S.pending = snap0.pending || 0; S.sess = snap0.sess || {};
+    S.me = snap0.me; S.center = snap0.center; S.closing = snap0.closing; S.model = snap0.model; S.pending = snap0.pending || 0; S.sess = snap0.sess || {}; S.valid = snap0.valid || {};
     setMembers(snap0.members || []);
     enterApp(true);
     resume(true);
