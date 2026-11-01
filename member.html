@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.13.1">
+<meta name="sowel-version" content="0.14.1">
 <meta name="robots" content="noindex,nofollow">
 <title>나의 수업일지 · SOWEL</title>
 <link rel="manifest" href="manifest-member.webmanifest">
@@ -15,6 +15,50 @@
 <meta name="apple-mobile-web-app-title" content="소웰 웰니스">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>window.SOWEL_APP = 'member';</script>
+<script>
+/* ───── 푸시 알림 공통 (Firebase 메시징 — 누를 때만 불러옴) ───── */
+window.SOWEL_PUSH = (function () {
+  var FB = 'https://www.gstatic.com/firebasejs/10.14.1/', loading = null;
+  var ua = navigator.userAgent || '';
+  function standalone() { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
+  function supported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+  function iosNeedsInstall() { return /iPhone|iPad|iPod/i.test(ua) && !standalone(); }
+  function add(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script'); s.src = src; s.async = true;
+      s.onload = res; s.onerror = function () { rej(new Error('알림 도구를 불러오지 못했어요. 인터넷을 확인해 주세요.')); };
+      document.head.appendChild(s);
+    });
+  }
+  function load() {
+    if (window.firebase && window.firebase.messaging) return Promise.resolve();
+    if (!loading) loading = add(FB + 'firebase-app-compat.js').then(function () { return add(FB + 'firebase-messaging-compat.js'); });
+    return loading;
+  }
+  /** 알림 토큰 받기. ask=true면 허용 창을 띄움(버튼을 누른 순간에만 불러야 함) */
+  function token(c, ask) {
+    if (!supported()) return Promise.reject(new Error(iosNeedsInstall() ? '아이폰은 홈 화면에 추가한 앱에서만 알림을 받을 수 있어요.' : '이 브라우저는 알림을 지원하지 않아요.'));
+    var perm = ask ? Notification.requestPermission() : Promise.resolve(Notification.permission);
+    return Promise.resolve(perm).then(function (p) {
+      if (p !== 'granted') {
+        if (!ask) return '';
+        throw new Error(p === 'denied' ? '알림이 꺼져 있어요. 폰 설정 → 알림에서 이 앱을 허용한 뒤 다시 눌러 주세요.' : '알림 허용을 눌러 주세요.');
+      }
+      return load().then(function () {
+        if (!window.firebase.apps.length) window.firebase.initializeApp(c.config);
+        return navigator.serviceWorker.register('sw.js');
+      }).then(function (reg) {
+        return navigator.serviceWorker.ready.then(function () {
+          return window.firebase.messaging().getToken({ vapidKey: c.vapid, serviceWorkerRegistration: reg });
+        });
+      });
+    });
+  }
+  function device() { return /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : '기기'; }
+  function granted() { return 'Notification' in window && Notification.permission === 'granted'; }
+  return { supported: supported, iosNeedsInstall: iosNeedsInstall, token: token, device: device, granted: granted };
+})();
+</script>
 <script>
 /* ───── 앱처럼 쓰기: 홈 화면에 추가 안내 (이미 앱으로 열었으면 안 보임) ───── */
 (function () {
@@ -142,6 +186,16 @@ var SOWEL_UPD = (function () {
   .tip{text-align:center;font-size:12px;color:var(--muted);margin-top:32px}
   .foot{text-align:center;font-family:'Cormorant Garamond',serif;letter-spacing:.2em;font-size:13px;color:var(--muted);margin-top:10px}
   .hidden{display:none !important}
+  .pushcard{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin-top:12px}
+  .pushcard .pi{font-size:22px;flex:0 0 auto}
+  .pushcard .pt{flex:1;min-width:0;font-size:14px;line-height:1.5}
+  .pushcard .pt b{display:block;font-size:15px}
+  .pushcard .pt span{color:var(--muted);font-size:12.5px}
+  .pushcard button{flex:0 0 auto;border:0;background:var(--terra);color:#fff;border-radius:99px;padding:9px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;min-height:40px}
+  .pushcard button:disabled{opacity:.5}
+  .pushcard.on{padding:10px 16px}
+  .pushcard.on button{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:500}
+  .pushmsg{font-size:12px;color:#B3261E;margin:6px 4px 0}
   .installbox{display:flex;gap:10px;align-items:center;background:#FFFDF9;border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:10px 0;font-size:13px;line-height:1.5}
   .installbox img{width:36px;height:36px;border-radius:9px;flex:0 0 auto}
   .installbox .it{flex:1;min-width:0}
@@ -221,6 +275,9 @@ var SOWEL_UPD = (function () {
   </section>
 
   <div class="installbox hidden" id="installBox" style="margin-top:12px"><img src="icon-member-180.png" alt=""><div class="it"></div><button class="ib hidden" type="button"></button><button class="ix" type="button" aria-label="안내 닫기">✕</button></div>
+
+  <section class="pushcard hidden" id="pushCard"><div class="pi">🔔</div><div class="pt" id="pushText"></div><button type="button" id="pushBtn"></button></section>
+  <div class="pushmsg hidden" id="pushMsg"></div>
 
   <section class="next hidden" id="next">
     <div class="dday" id="dday"><b>D-1</b><span>다음 수업</span></div>
@@ -592,6 +649,48 @@ var SOWEL_UPD = (function () {
     show(0);
   }
 
+
+  // ───── 푸시 알림 ─────
+  var PUSH = null;
+  function pkey() { return 'sj_m_pushtok_' + code; }
+  function pget() { try { return localStorage.getItem(pkey()) || ''; } catch (e) { return ''; } }
+  function pset(v) { try { if (v) localStorage.setItem(pkey(), v); else localStorage.removeItem(pkey()); } catch (e) {} }
+  function pmsg(t) { $('pushMsg').textContent = t || ''; $('pushMsg').classList.toggle('hidden', !t); }
+  function pushApi(body) {
+    body.action = 'pushMember'; body.c = code;
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(readJson).then(function (j) { if (!j.ok) throw new Error(j.error || '처리하지 못했어요.'); return j; });
+  }
+  function renderPush(cfg) {
+    PUSH = cfg;
+    var card = $('pushCard');
+    if (!cfg || (!SOWEL_PUSH.supported() && !SOWEL_PUSH.iosNeedsInstall())) { card.classList.add('hidden'); return; }
+    var on = SOWEL_PUSH.granted() && !!pget(), b = $('pushBtn'), t = $('pushText');
+    card.classList.toggle('on', on);
+    t.innerHTML = '';
+    if (on) {
+      t.appendChild(document.createTextNode('수업 알림이 켜져 있어요'));
+      b.textContent = '끄기'; b.disabled = false;
+      b.onclick = function () { b.disabled = true; pushApi({ off: true, pt: pget() }).then(function () { pset(''); pmsg(''); renderPush(PUSH); }).catch(function (e) { b.disabled = false; pmsg(e.message); }); };
+    } else {
+      t.appendChild(el('b', '', '수업 알림 받기'));
+      t.appendChild(el('span', '', SOWEL_PUSH.iosNeedsInstall() ? '아이폰은 홈 화면에 추가한 앱에서 켤 수 있어요 (공유 → 홈 화면에 추가)'
+                                                               : '수업 전날·1시간 전, 새 수업일지가 올라오면 알려 드려요'));
+      b.textContent = '알림 받기'; b.disabled = SOWEL_PUSH.iosNeedsInstall();
+      b.onclick = function () {
+        b.disabled = true; pmsg('');
+        SOWEL_PUSH.token(PUSH, true).then(function (tk) {
+          if (!tk) throw new Error('알림 등록에 실패했어요. 잠시 후 다시 눌러 주세요.');
+          return pushApi({ pt: tk, device: SOWEL_PUSH.device() }).then(function () { pset(tk); });
+        }).then(function () { renderPush(PUSH); })
+          .catch(function (e) { b.disabled = false; pmsg(e.message); });
+      };
+    }
+    card.classList.remove('hidden');
+    // 이미 켜져 있으면 조용히 등록 정보 새로 고침
+    if (on) SOWEL_PUSH.token(cfg, false).then(function (tk) { if (tk && tk !== pget()) return pushApi({ pt: tk, device: SOWEL_PUSH.device() }).then(function () { pset(tk); }); }).catch(function () {});
+  }
+
   function fail(msg) {
     $('state').textContent = msg;
   }
@@ -664,6 +763,7 @@ var SOWEL_UPD = (function () {
       renderNext(j.next);
       renderLeft(j.sessions);
       renderValid(j.valid);
+      renderPush(j.push);
       renderHw(j.hw);
 
       if (!logs.length) return fail('아직 기록된 수업일지가 없어요.\n첫 수업 후에 이곳에 쌓여요 🌿');
