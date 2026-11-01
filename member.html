@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.10.0">
+<meta name="sowel-version" content="0.11.0">
 <meta name="robots" content="noindex,nofollow">
 <title>나의 수업일지 · SOWEL</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -63,7 +63,7 @@ var SOWEL_UPD = (function () {
   .hero{margin-top:28px;padding:22px 20px;border-radius:20px;background:var(--brown);color:var(--cream)}
   .eyebrow{font-family:'Cormorant Garamond',serif;font-size:14px;letter-spacing:.24em;color:#E9B48F;margin:0}
   .hero h1{font-size:22px;margin:6px 0 0;font-weight:700;letter-spacing:-.3px}
-  .stats{display:flex;gap:18px;margin-top:16px}
+  .stats{display:flex;flex-wrap:wrap;gap:12px 18px;margin-top:16px}
   .stat b{display:block;font-size:22px;font-weight:700;color:#fff;line-height:1.2}
   .stat span{font-size:12px;color:#CBBFB0}
   .state{white-space:pre-line;text-align:center;color:var(--muted);font-size:14px;padding:48px 8px}
@@ -118,6 +118,28 @@ var SOWEL_UPD = (function () {
   .hist div{display:flex;gap:10px;padding:3px 0;border-top:1px dashed var(--soft)}
   .hist div:first-child{border-top:0}
   .hist span:first-child{color:var(--muted);flex:0 0 auto;width:62px}
+  .stat.low b{color:#F6B07E}
+  .leftnote{margin-top:12px;font-size:13px;color:#F3D9C4;border-top:1px solid rgba(255,255,255,.12);padding-top:10px}
+  /* 숙제 */
+  .hw{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px 6px}
+  .hw .sub2{font-size:12px;color:var(--muted);margin:0 0 6px}
+  .hwi{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--soft)}
+  .hwi:first-of-type{border-top:0}
+  .hwi .tx{flex:1;min-width:0;font-size:15px;word-break:keep-all;overflow-wrap:anywhere}
+  .dots{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+  .dot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);background:transparent;font-size:9px;line-height:13px;text-align:center;color:var(--muted)}
+  .dot.on{background:var(--terra);border-color:var(--terra);color:#fff}
+  .dot.today{border-color:var(--brown)}
+  .hwbtn{flex:0 0 auto;border:1.5px solid var(--terra);background:transparent;color:var(--terra);border-radius:99px;padding:8px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;min-height:40px}
+  .hwbtn.on{background:var(--terra);color:#fff}
+  .hwbtn:disabled{opacity:.6}
+  .hwmsg{font-size:12px;color:#B3261E;min-height:0;padding-bottom:6px}
+  /* 무게 변화 */
+  .wbox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 12px 8px;position:relative}
+  .wsum{font-size:13px;color:var(--muted);margin:2px 4px 6px}
+  .wsum b{color:var(--brown)}
+  .wbox svg{display:block;width:100%;height:auto;overflow:visible}
+  .wtip{position:absolute;pointer-events:none;background:var(--brown);color:#fff;font-size:12px;border-radius:8px;padding:4px 8px;white-space:nowrap;transform:translate(-50%,-120%)}
 </style>
 </head>
 <body>
@@ -134,7 +156,9 @@ var SOWEL_UPD = (function () {
       <div class="stat"><b id="count">0</b><span>기록된 수업</span></div>
       <div class="stat"><b id="since">-</b><span>첫 기록</span></div>
       <div class="stat hidden" id="trainerStat"><b id="trainer">-</b><span>담당 선생님</span></div>
+      <div class="stat hidden" id="leftStat"><b id="left">-</b><span id="leftLbl">남은 수업</span></div>
     </div>
+    <div class="leftnote hidden" id="leftNote"></div>
   </section>
 
   <section class="next hidden" id="next">
@@ -146,6 +170,8 @@ var SOWEL_UPD = (function () {
       <div class="more" id="nextMore"></div>
     </div>
   </section>
+
+  <div id="hwWrap" class="hidden"><div class="sec">이번 숙제</div><section class="hw" id="hwBox"></section></div>
 
   <div class="state" id="state"><span class="spin"></span>수업일지를 불러오는 중이에요…</div>
   <div id="list"></div>
@@ -330,6 +356,170 @@ var SOWEL_UPD = (function () {
     show(parts[0].name);
   }
 
+  // ───── 남은 수업 ─────
+  function renderLeft(ses) {
+    if (!ses) return;
+    var left = ses.left;
+    $('left').textContent = left <= 0 ? '0회' : left + '회';
+    $('leftLbl').textContent = ses.lastN ? '남은 수업 (' + ses.lastN + '회 중)' : '남은 수업';
+    $('leftStat').classList.toggle('low', left <= 3);
+    $('leftStat').classList.remove('hidden');
+    if (left <= 3) {
+      $('leftNote').textContent = left <= 0 ? '등록한 수업을 모두 마쳤어요. 이어서 하실 때는 담당 선생님께 말씀해 주세요.'
+        : '남은 수업이 ' + left + '회예요. 이어서 하실 계획이면 담당 선생님께 편하게 말씀해 주세요.';
+      $('leftNote').classList.remove('hidden');
+    }
+  }
+
+  // ───── 숙제 체크 ─────
+  var HW = null, hwBusy = false;
+  function addDay(y, n) { var d = parseDate(y); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function renderHw(hw) {
+    HW = hw;
+    var box = $('hwBox');
+    if (!hw || !hw.items || !hw.items.length) { $('hwWrap').classList.add('hidden'); return; }
+    box.innerHTML = '';
+    var d0 = parseDate(hw.date);
+    box.appendChild(el('p', 'sub2', (d0 ? (d0.getMonth() + 1) + '월 ' + d0.getDate() + '일 수업 숙제예요. 한 날은 눌러서 체크해 주세요. 선생님도 같이 봐요.' : '')));
+    var n = Math.min(hw.days, 7), first = addDay(hw.today, -(n - 1));
+    hw.items.forEach(function (it, i) {
+      var row = el('div', 'hwi'), left = el('div', 'tx');
+      left.appendChild(document.createTextNode(it.t));
+      var dots = el('div', 'dots');
+      for (var k = 0; k < n; k++) {
+        var y = addDay(first, k), dd = parseDate(y);
+        var dot = el('span', 'dot' + (it.done.indexOf(y) >= 0 ? ' on' : '') + (y === hw.today ? ' today' : ''), String(dd.getDate()));
+        dot.title = (dd.getMonth() + 1) + '/' + dd.getDate() + (it.done.indexOf(y) >= 0 ? ' 했어요' : '');
+        dots.appendChild(dot);
+      }
+      if (hw.days > 7) dots.appendChild(el('span', 'dot', '…')).style.border = '0';
+      left.appendChild(dots);
+      row.appendChild(left);
+      var on = it.done.indexOf(hw.today) >= 0;
+      var b = el('button', 'hwbtn' + (on ? ' on' : ''), on ? '했어요 ✓' : '오늘 했어요');
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.onclick = function () { toggleHw(i, !on); };
+      row.appendChild(b);
+      box.appendChild(row);
+    });
+    box.appendChild(el('div', 'hwmsg', ''));
+    $('hwWrap').classList.remove('hidden');
+  }
+  function toggleHw(i, on) {
+    if (hwBusy || !HW) return;
+    hwBusy = true;
+    var prev = JSON.parse(JSON.stringify(HW));
+    var it = HW.items[i];                                   // 누르는 즉시 표시
+    if (on) { if (it.done.indexOf(HW.today) < 0) it.done.push(HW.today); }
+    else it.done = it.done.filter(function (d) { return d !== HW.today; });
+    renderHw(HW);
+    fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                 body: JSON.stringify({ action: 'hw', c: code, log: HW.log, i: i, on: on }) })
+      .then(readJson)
+      .then(function (j) {
+        hwBusy = false;
+        if (j.ok && j.hw) return renderHw(j.hw);
+        renderHw(j.hw || prev);
+        var m = $('hwBox').querySelector('.hwmsg'); if (m) m.textContent = j.error || '저장하지 못했어요. 다시 눌러 주세요.';
+      })
+      .catch(function () {
+        hwBusy = false; renderHw(prev);
+        var m = $('hwBox').querySelector('.hwmsg'); if (m) m.textContent = '인터넷 연결이 불안정해요. 잠시 후 다시 눌러 주세요.';
+      });
+  }
+
+  // ───── 무게 변화 ─────
+  function kgOf(d) {
+    var m = String(d || '').match(/(\d+(?:\.\d+)?)\s*(?:kg|킬로|키로)/gi);
+    if (!m) return null;
+    return Math.max.apply(null, m.map(function (x) { return parseFloat(x); }));
+  }
+  function buildWeights(logs) {
+    var by = {};
+    logs.slice().reverse().forEach(function (log) {
+      var ex = (log.ex && log.ex.length) ? log.ex : exFromText(log.text);
+      ex.forEach(function (e, idx) {
+        var kg = kgOf(e.d); if (kg === null || !(kg > 0)) return;
+        var key = String(e.n).replace(/\s+/g, '');
+        var it = by[key] || (by[key] = { name: e.n, pts: {} });
+        it.name = e.n; it.order = idx;
+        it.pts[log.date] = Math.max(it.pts[log.date] || 0, kg);
+      });
+    });
+    return Object.keys(by).map(function (k) {
+      var it = by[k];
+      return { name: it.name, order: it.order, pts: Object.keys(it.pts).sort().map(function (d) { return { d: d, v: it.pts[d] }; }) };
+    }).filter(function (x) { return x.pts.length >= 2; })
+      .sort(function (a, b) {
+        var la = a.pts[a.pts.length - 1].d, lb = b.pts[b.pts.length - 1].d;
+        return b.pts.length - a.pts.length || (la < lb ? 1 : la > lb ? -1 : a.order - b.order);
+      });
+  }
+  function fmtKg(v) { return (Math.round(v * 10) / 10) + 'kg'; }
+  function niceStep(span) { var r = span / 3, p = Math.pow(10, Math.floor(Math.log10(r))), f = r / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+  function drawWeight(box, w) {
+    var NS = 'http://www.w3.org/2000/svg';
+    function sv(tag, at) { var e = document.createElementNS(NS, tag); for (var k in at) e.setAttribute(k, at[k]); return e; }
+    box.innerHTML = '';
+    var pts = w.pts.slice(-20), a = pts[0], z = pts[pts.length - 1];
+    var diff = z.v - a.v;
+    var sum = el('div', 'wsum');
+    sum.innerHTML = '';
+    sum.appendChild(document.createTextNode('처음 ' + fmtKg(a.v) + ' → 최근 '));
+    sum.appendChild(el('b', '', fmtKg(z.v)));
+    sum.appendChild(document.createTextNode((diff ? ' (' + (diff > 0 ? '+' : '') + fmtKg(diff) + ')' : ' (그대로)') + ' · ' + w.pts.length + '번 기록'));
+    box.appendChild(sum);
+    var W = 320, H = 160, L = 38, R = 16, T = 22, B = 24;
+    var t0 = parseDate(a.d).getTime(), t1 = parseDate(z.d).getTime();
+    var lo = Math.min.apply(null, pts.map(function (p) { return p.v; })), hi = Math.max.apply(null, pts.map(function (p) { return p.v; }));
+    if (hi === lo) { lo -= 5; hi += 5; }
+    var st = niceStep(hi - lo); lo = Math.floor(lo / st) * st; hi = Math.ceil(hi / st) * st;
+    lo = Math.max(0, lo);
+    function X(p) { return L + (t1 === t0 ? (W - L - R) / 2 : (parseDate(p.d).getTime() - t0) / (t1 - t0) * (W - L - R)); }
+    function Y(v) { return T + (1 - (v - lo) / (hi - lo)) * (H - T - B); }
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': w.name + ' 무게 변화: ' + pts.map(function (p) { return md2(p.d) + ' ' + fmtKg(p.v); }).join(', ') });
+    for (var g = lo; g <= hi + 1e-9; g += st) {
+      svg.appendChild(sv('line', { x1: L, x2: W - R, y1: Y(g), y2: Y(g), stroke: '#EFE6D8', 'stroke-width': 1 }));
+      var tl = sv('text', { x: L - 6, y: Y(g) + 3.5, 'text-anchor': 'end', 'font-size': 10, fill: '#7D7166' }); tl.textContent = Math.round(g * 10) / 10; svg.appendChild(tl);
+    }
+    [a, z].forEach(function (p, i) {
+      var xl = sv('text', { x: X(p), y: H - 6, 'text-anchor': i ? 'end' : 'start', 'font-size': 10, fill: '#7D7166' }); xl.textContent = md2(p.d); svg.appendChild(xl);
+    });
+    svg.appendChild(sv('polyline', { points: pts.map(function (p) { return X(p) + ',' + Y(p.v); }).join(' '), fill: 'none', stroke: '#E8601A', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    var tip = el('div', 'wtip hidden');
+    pts.forEach(function (p, i) {
+      svg.appendChild(sv('circle', { cx: X(p), cy: Y(p.v), r: 4, fill: '#E8601A', stroke: '#FFFDF9', 'stroke-width': 2 }));
+      var hit = sv('circle', { cx: X(p), cy: Y(p.v), r: 14, fill: 'transparent' });
+      hit.style.cursor = 'pointer';
+      function show() {
+        tip.textContent = md2(p.d) + ' · ' + fmtKg(p.v);
+        var rc = svg.getBoundingClientRect(), k = rc.width / W;
+        tip.style.left = (svg.getBoundingClientRect().left - box.getBoundingClientRect().left + X(p) * k) + 'px';
+        tip.style.top = (svg.getBoundingClientRect().top - box.getBoundingClientRect().top + Y(p.v) * k) + 'px';
+        tip.classList.remove('hidden');
+      }
+      hit.addEventListener('mouseenter', show); hit.addEventListener('click', show);
+      hit.addEventListener('mouseleave', function () { tip.classList.add('hidden'); });
+      svg.appendChild(hit);
+    });
+    var lv = sv('text', { x: X(z), y: Y(z.v) - 9, 'text-anchor': 'end', 'font-size': 11, 'font-weight': 700, fill: '#2C2620' }); lv.textContent = fmtKg(z.v); svg.appendChild(lv);
+    box.appendChild(svg);
+    box.appendChild(tip);
+  }
+  function renderWeights(container, logs) {
+    var list = buildWeights(logs).slice(0, 10);
+    if (!list.length) return;
+    container.appendChild(el('div', 'sec', '무게 변화'));
+    var chips = el('div', 'chips'); container.appendChild(chips);
+    var box = el('div', 'wbox'); container.appendChild(box);
+    function show(i) {
+      Array.prototype.forEach.call(chips.children, function (c, k) { c.classList.toggle('on', k === i); });
+      drawWeight(box, list[i]);
+    }
+    list.forEach(function (w, i) { var c = el('button', 'pchip', w.name); c.onclick = function () { show(i); }; chips.appendChild(c); });
+    show(0);
+  }
+
   function fail(msg) {
     $('state').textContent = msg;
   }
@@ -401,6 +591,8 @@ var SOWEL_UPD = (function () {
       $('hero').classList.remove('hidden');
       $('tip').classList.remove('hidden');
       renderNext(j.next);
+      renderLeft(j.sessions);
+      renderHw(j.hw);
 
       if (!logs.length) return fail('아직 기록된 수업일지가 없어요.\n첫 수업 후에 이곳에 쌓여요 🌿');
       $('state').classList.add('hidden');
@@ -415,6 +607,7 @@ var SOWEL_UPD = (function () {
       c.appendChild(el('div', 'body', bodyText(first.text)));
       list.appendChild(c);
 
+      renderWeights(list, logs);
       renderParts(list, logs);
 
       if (logs.length > 1) {

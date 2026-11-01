@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.12.0">
+<meta name="sowel-version" content="0.13.0">
 <title>소웰 수업일지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -182,6 +182,31 @@
   .grid2>.hidden+div{grid-column:1/-1}
   .list select.mini{width:auto;flex:0 0 auto;font-size:13px;padding:6px 26px 6px 8px;background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%}
   .list .item .sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
+  .ses{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:2px 9px;margin-left:6px;background:#E8F1E4;color:#3F6B35;white-space:nowrap}
+  .ses.low{background:#FFF0E0;color:#B5520F}
+  .ses.out{background:var(--err);color:#fff}
+  .ses.none{background:transparent;border:1px dashed var(--line);color:var(--muted);font-weight:500}
+  .list .item.wrap{flex-wrap:wrap;row-gap:6px}
+  .list .item.wrap>.grow{flex:1 0 100%}
+  .regbox{width:100%;background:#FBF7F1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px}
+  .regbox .grid3{display:grid;grid-template-columns:70px 1fr;gap:8px}
+  .reghist{font-size:13px;margin-top:8px}
+  .reghist div{display:flex;gap:8px;align-items:center;padding:4px 0;border-top:1px dashed var(--line)}
+  .reghist div:first-child{border-top:0}
+  .reghist span.d{color:var(--muted);width:78px;flex:0 0 auto}
+  .reghist span.m{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dinfo{background:#FBF7F1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13px}
+  .dinfo .hwl{display:flex;gap:8px;justify-content:space-between;padding:2px 0}
+  .dinfo .hwl span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dinfo .hwl b{white-space:nowrap}
+  table.stat{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+  table.stat th,table.stat td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  table.stat th:first-child,table.stat td:first-child{text-align:left}
+  table.stat th{font-size:12px;color:var(--muted);font-weight:500}
+  table.stat td.tot{font-weight:700;color:var(--terra)}
+  table.stat tr.sum td{font-weight:700;border-bottom:0}
+  .monthnav{display:flex;align-items:center;gap:8px}
+  .monthnav b{min-width:96px;text-align:center}
   .warn{background:#FFF4E5;border:1px solid #F3C98B;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px}
 </style>
 </head>
@@ -426,6 +451,7 @@
 
       <section class="card">
         <h2 id="memberSectionTitle">회원</h2>
+        <div class="warn hidden" id="lowBox"></div>
         <div class="grid2">
           <div><label for="mName" style="margin-top:0">이름</label><input id="mName" type="text" maxlength="30"></div>
           <div><label for="mPhone" style="margin-top:0">연락처 (선택)</label><input id="mPhone" type="tel" maxlength="20"></div>
@@ -439,6 +465,14 @@
           <summary style="font-size:14px" id="memberListTitle">회원 목록 · 담당 · 링크</summary>
           <div id="memberList" class="list" style="margin-top:8px"></div>
         </details>
+      </section>
+
+      <section class="card" id="statSection">
+        <h2 id="statTitle">월별 수업 수</h2>
+        <div class="monthnav"><button class="btn ghost small" id="stPrev" aria-label="지난달">‹</button><b id="stMonth"></b><button class="btn ghost small" id="stNext" aria-label="다음 달">›</button></div>
+        <div id="stBody"></div>
+        <p class="note">합계 = 완료 + 노쇼 (급여 계산용). 완료에는 일정 없이 쓴 일지도 들어가요. 취소는 합계에 안 들어가요.</p>
+        <div class="msg" id="stMsg"></div>
       </section>
 
       <section class="card" id="mySection">
@@ -487,6 +521,7 @@
     <div class="dline" id="dWho"></div>
     <div class="dline note" id="dMemo"></div>
     <div class="stbtns" id="dStatus"></div>
+    <div class="dinfo hidden" id="dInfo"></div>
     <div class="row" id="dLogRow"><button class="btn terra" id="dLog">이 수업 일지 쓰기</button></div>
     <div class="row"><button class="btn ghost" id="dEdit">수정</button><button class="btn ghost danger" id="dDel">삭제</button></div>
     <div class="row hidden" id="dDelScope"><button class="btn danger-fill" id="dDelOne">이 일정만 삭제</button><button class="btn danger-fill" id="dDelFuture">이 날부터 반복 끝내기</button></div>
@@ -798,7 +833,7 @@ var SJ = (function () {
     if (!S.me || !store.get('token')) return;
     try {
       localStorage.setItem('sj_snap', JSON.stringify({ me: S.me, center: S.center, closing: S.closing, model: S.model,
-        pending: S.pending, members: S.members, at: Date.now() }));
+        pending: S.pending, members: S.members, sess: S.sess || {}, at: Date.now() }));
     } catch (e) {}
   }
   function readSnap() {
@@ -874,7 +909,7 @@ var SJ = (function () {
   function showLogin() { hideAll(); $('loginView').classList.remove('hidden'); }
   function logout(reason) {
     store.del('token'); store.del('pin'); clearSnap();
-    S.me = null; currentTab = 'sched'; SV.cache = {}; $('teacherList').innerHTML = '';
+    S.me = null; currentTab = 'sched'; SV.cache = {}; $('teacherList').innerHTML = ''; S.sess = {}; S.info = {}; openReg = '';
     $('pinIn').value = ''; $('pwIn').value = '';
     showLogin();
     msg('loginMsg', reason || '로그아웃했어요.', reason ? 'err' : 'ok');
@@ -903,6 +938,7 @@ var SJ = (function () {
     if (!isAdmin()) { SV.teachers = []; $('sTrainer').value = ''; }
     loadSchedSnap();
     showTab(currentTab);
+    if (currentTab !== 'admin') setTimeout(loadSessions, 800);   // 달력의 '잔여' 표시용 (뒤에서)
     if (!fromSnap && !apiKey()) { if (isAdmin()) $('settingsBox').open = true; setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err'); }
   }
 
@@ -920,7 +956,7 @@ var SJ = (function () {
     if (name === 'sched') loadSchedule();
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) { b.classList.toggle('on', b.dataset.tab === name); });
     if (name === 'logs' && !logsLoaded) loadLogs();
-    if (name === 'admin') { if (isAdmin()) loadTeachers(); else renderMemberList(); }
+    if (name === 'admin') { if (isAdmin()) loadTeachers(); else renderMemberList(); loadSessions(); loadStats(); }
   }
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
     b.onclick = function () { showTab(b.dataset.tab); };
@@ -1282,7 +1318,9 @@ var SJ = (function () {
       var evId = logEvent && logEvent.code === code ? logEvent.id : '';
       var j = await callApi({ action: 'save', code: code, date: $('dateIn').value || todayStr(),
                               text: text, transcript: $('transcript').value, id: logId, exercises: exs, eventId: evId });
-      if (evId) { logEvent.status = '완료'; logEvent.logId = j.id; logEvent = null; $('evBanner').classList.add('hidden'); staleOthers('', false); saveSchedSnap(); }
+      if (evId) { logEvent.status = '완료'; logEvent.logId = j.id; logEvent = null; $('evBanner').classList.add('hidden'); }
+      if (evId || j.eventId) { staleOthers('', false); saveSchedSnap(); }
+      refreshSessionsSoon(); delete S.info[code];
       savedLink = j.link || memberLink(code); savedName = j.name || '';
       msg('saveMsg', (j.duplicate ? '이미 저장된 일지예요. 고치려면 [일지] 탭에서 수정해 주세요. ' : '') + savedName + '님 페이지에 저장했어요 ✅', 'ok');
       btn.textContent = '저장 완료';
@@ -1669,8 +1707,10 @@ var SJ = (function () {
     var noTrainer = S.members.filter(function (m) { return !m.trainer; }).length;
     if (isAdmin() && noTrainer) $('memberListTitle').textContent += ' — 담당 없음 ' + noTrainer + '명';
     S.members.forEach(function (m) {
-      var row = el('div', 'item');
-      row.appendChild(el('b', 'grow', m.name));
+      var row = el('div', 'item' + (isAdmin() ? ' wrap' : ''));
+      var nmb = el('b', 'grow', m.name), sc = sesChip(m.code, true);
+      if (sc) nmb.appendChild(sc);
+      row.appendChild(nmb);
       if (isAdmin()) {
         var ts = el('select', 'mini'); ts.setAttribute('aria-label', m.name + ' 담당');
         fillTrainerSelect(ts, m.trainer);
@@ -1691,8 +1731,166 @@ var SJ = (function () {
       b2.onclick = async function () { var ok = await copyText(linkMessage(m.name, memberLink(m.code))); b2.textContent = ok ? '복사됨 ✓' : '실패'; setTimeout(function () { b2.textContent = '링크 복사'; }, 2000); };
       row.appendChild(b1); row.appendChild(b2);
       list.appendChild(row);
+      if (isAdmin()) {
+        var b3 = el('button', 'btn ghost small', '횟수');
+        b3.onclick = function () { toggleReg(m, row, b3); };
+        row.insertBefore(b3, b1);
+        if (openReg === m.code) toggleReg(m, row, b3, true);
+      }
     });
+    renderLow();
   }
+
+  // ═════════ 잔여 횟수 · 숙제 · 월별 수업 수 ═════════
+  S.sess = {}; S.info = {}; S.infoBusy = {};
+  var sessTimer = null, openReg = '';
+  function sesText(s) {
+    if (s.left < 0) return '초과 ' + (-s.left) + '회';
+    if (s.left === 0) return '횟수 소진';
+    return '남은 ' + s.left + (s.lastN ? '/' + s.lastN : '') + '회';
+  }
+  function sesChip(code, full) {
+    var s = S.sess[code];
+    if (!s) return isAdmin() && full ? el('span', 'ses none', '등록 없음') : null;
+    return el('span', 'ses' + (s.left <= 0 ? ' out' : s.left <= 3 ? ' low' : ''), sesText(s));
+  }
+  async function loadSessions() {
+    try {
+      var j = await callApi({ action: 'sessions' });
+      S.sess = j.sessions || {}; saveSnap();
+      renderMemberList();
+      if (currentTab === 'sched') drawCal();
+    } catch (e) {}
+  }
+  function refreshSessionsSoon() { clearTimeout(sessTimer); sessTimer = setTimeout(loadSessions, 1200); }
+  function renderLow() {
+    var box = $('lowBox'); if (!box) return;
+    var low = S.members.filter(function (m) { var s = S.sess[m.code]; return s && s.left <= 3; })
+      .sort(function (a, b) { return S.sess[a.code].left - S.sess[b.code].left; });
+    box.classList.toggle('hidden', !low.length);
+    box.textContent = low.length ? '재등록 확인 · ' + low.map(function (m) { return m.name + ' ' + sesText(S.sess[m.code]); }).join(' · ') : '';
+  }
+  /** 일정 상세: 잔여 횟수 + 숙제 체크 */
+  async function showInfo(code, force) {
+    var c = S.info[code];
+    if (c) renderInfo(c.data);
+    else { $('dInfo').classList.add('hidden'); }
+    if (c && !force && Date.now() - c.at < 30000) return;
+    if (!force && S.infoBusy[code]) return;          // 이미 받는 중
+    S.infoBusy[code] = true;
+    try {
+      var j = await callApi({ action: 'memberInfo', code: code });
+      S.info[code] = { data: j, at: Date.now() };
+      if (j.sessions) S.sess[code] = j.sessions; else delete S.sess[code];
+      if (curEv && curEv.code === code && !$('evDetail').classList.contains('hidden')) renderInfo(j);
+    } catch (e) {}
+    finally { S.infoBusy[code] = false; }
+  }
+  function renderInfo(j) {
+    var box = $('dInfo'); box.innerHTML = '';
+    if (j.sessions) {
+      var l1 = el('div', ''); l1.appendChild(document.createTextNode('수업 횟수 '));
+      var ch = el('span', 'ses' + (j.sessions.left <= 0 ? ' out' : j.sessions.left <= 3 ? ' low' : ''), sesText(j.sessions)); ch.style.marginLeft = '0';
+      l1.appendChild(ch);
+      if (j.sessions.left <= 3) l1.appendChild(el('span', 'note', j.sessions.left <= 0 ? ' — 재등록이 필요해요' : ' — 재등록 시기예요'));
+      box.appendChild(l1);
+    } else if (isAdmin()) box.appendChild(el('div', 'note', '등록된 횟수가 없어요. [관리] 탭 회원 목록의 [횟수]에서 등록해요.'));
+    if (j.hw && j.hw.items.length) {
+      var d = parseYmd(j.hw.date);
+      var h = el('div', '', '숙제 · ' + (d.getMonth() + 1) + '/' + d.getDate() + ' 수업부터 ' + j.hw.days + '일 동안');
+      h.style.marginTop = j.sessions || isAdmin() ? '8px' : '0'; h.style.fontWeight = '700';
+      box.appendChild(h);
+      j.hw.items.forEach(function (it) {
+        var r = el('div', 'hwl'); r.appendChild(el('span', '', it.t));
+        r.appendChild(el('b', '', it.done.length ? it.done.length + '일 했어요' : '아직 체크 없음'));
+        box.appendChild(r);
+      });
+    }
+    box.classList.toggle('hidden', !box.children.length);
+  }
+  /** 관리자: 회원 목록에서 횟수 등록·내역 */
+  async function toggleReg(m, row, btn, keep) {
+    var nx = row.nextSibling;
+    if (nx && nx.classList && nx.classList.contains('regbox')) { nx.remove(); if (!keep) { openReg = ''; return; } }
+    openReg = m.code;
+    var box = el('div', 'regbox');
+    box.innerHTML = '<div class="grid3"><input type="number" inputmode="numeric" min="-100" max="200" placeholder="횟수" aria-label="횟수">' +
+      '<input type="text" maxlength="100" placeholder="메모 (예: 20회권 재등록)" aria-label="메모"></div>' +
+      '<div class="row" style="margin-top:8px"><input type="date" aria-label="등록일" style="flex:1"><button class="btn terra small">등록</button></div>' +
+      '<div class="msg"></div><div class="reghist note">불러오는 중…</div>';
+    row.parentNode.insertBefore(box, row.nextSibling);
+    var ins = box.querySelectorAll('input'), nIn = ins[0], memoIn = ins[1], dIn = ins[2], go = box.querySelector('button'), mg = box.querySelector('.msg'), hist = box.querySelector('.reghist');
+    dIn.value = todayStr();
+    function draw(j) {
+      if (j.sessions) S.sess[m.code] = j.sessions; else delete S.sess[m.code];
+      hist.innerHTML = '';
+      if (!j.regs || !j.regs.length) { hist.textContent = '아직 등록 내역이 없어요. 처음이면 지금 남은 횟수를 오늘 날짜로 등록해 주세요.'; return; }
+      j.regs.forEach(function (r) {
+        var line = el('div');
+        line.appendChild(el('span', 'd', r.date));
+        line.appendChild(el('b', '', (r.n > 0 ? '+' : '') + r.n + '회'));
+        line.appendChild(el('span', 'm', r.memo || ''));
+        var del = el('button', 'link', '지우기');
+        del.onclick = async function () {
+          if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = '정말 지우기'; return; }
+          try { var k = await callApi({ action: 'deleteSessions', id: r.id }); draw(k); refreshSessionsSoon(); msg2('지웠어요.', 'ok'); }
+          catch (e) { msg2(e.message, 'err'); }
+        };
+        line.appendChild(del);
+        hist.appendChild(line);
+      });
+    }
+    function msg2(t, k) { mg.className = 'msg' + (k ? ' ' + k : ''); mg.textContent = t || ''; }
+    go.onclick = async function () {
+      var n = Math.round(Number(nIn.value));
+      if (!n) { msg2('횟수를 적어 주세요. 줄일 때는 -1처럼 적어요.', 'err'); return; }
+      go.disabled = true;
+      try {
+        var j = await callApi({ action: 'addSessions', code: m.code, n: n, date: dIn.value, memo: memoIn.value.trim() });
+        nIn.value = ''; memoIn.value = '';
+        draw(j); delete S.info[m.code]; saveSnap();
+        msg2(m.name + '님 ' + (n > 0 ? n + '회 등록' : (-n) + '회 줄임') + ' → ' + sesText(j.sessions), 'ok');
+        var chip = row.querySelector('.ses'); if (chip) { var nc = sesChip(m.code, true); chip.replaceWith(nc); }
+        renderLow();
+      } catch (e) { msg2(e.message, 'err'); }
+      finally { go.disabled = false; }
+    };
+    try { draw(await callApi({ action: 'memberInfo', code: m.code })); } catch (e) { hist.textContent = e.message; }
+  }
+  // 월별 수업 수
+  var stMonth = todayStr().slice(0, 7);
+  function shiftMonth(ym, n) { var y = +ym.slice(0, 4), mo = +ym.slice(5, 7) - 1 + n; y += Math.floor(mo / 12); mo = ((mo % 12) + 12) % 12; return y + '-' + ('0' + (mo + 1)).slice(-2); }
+  async function loadStats() {
+    $('stMonth').textContent = stMonth.slice(0, 4) + '년 ' + (+stMonth.slice(5)) + '월';
+    $('statTitle').textContent = isAdmin() ? '월별 수업 수 (선생님별)' : '내 월별 수업 수';
+    msg('stMsg', '불러오는 중…');
+    var want = stMonth;
+    try {
+      var j = await callApi({ action: 'monthStats', month: want });
+      if (want !== stMonth) return;
+      msg('stMsg', '');
+      var t = el('table', 'stat'), hd = el('tr');
+      ['선생님', '완료', '노쇼', '합계', '취소', '회원'].forEach(function (x) { hd.appendChild(el('th', '', x)); });
+      t.appendChild(hd);
+      var sum = { done: 0, noshow: 0, total: 0, cancel: 0 };
+      (j.rows || []).forEach(function (r) {
+        var tr = el('tr');
+        [r.name, r.done, r.noshow, r.total, r.cancel, r.members + '명'].forEach(function (x, i) { tr.appendChild(el('td', i === 3 ? 'tot' : '', String(x))); });
+        t.appendChild(tr);
+        sum.done += r.done; sum.noshow += r.noshow; sum.total += r.total; sum.cancel += r.cancel;
+      });
+      if (isAdmin() && (j.rows || []).length > 1) {
+        var tr2 = el('tr', 'sum');
+        ['합계', sum.done, sum.noshow, sum.total, sum.cancel, ''].forEach(function (x, i) { tr2.appendChild(el('td', i === 3 ? 'tot' : '', String(x))); });
+        t.appendChild(tr2);
+      }
+      $('stBody').innerHTML = '';
+      if (!(j.rows || []).length) $('stBody').appendChild(el('p', 'note', '이 달에는 기록된 수업이 없어요.'));
+      else $('stBody').appendChild(t);
+    } catch (e) { msg('stMsg', e.message, 'err'); }
+  }
+  $('stPrev').onclick = function () { stMonth = shiftMonth(stMonth, -1); loadStats(); };
+  $('stNext').onclick = function () { stMonth = shiftMonth(stMonth, 1); loadStats(); };
 
   // ═════════ 아이디·비밀번호 공통 ═════════
   var ID_RE = /^[a-z][a-z0-9._-]{3,19}$/;
@@ -2008,6 +2206,8 @@ var SJ = (function () {
         var nm = el('div', 'n', e.kind === '개인' ? e.title : e.member);
         if (e.status === '완료') nm.appendChild(el('span', 'badge', '✓'));
         if (e.status === '노쇼') nm.appendChild(el('span', 'badge', '노쇼'));
+        var ss0 = e.kind !== '개인' && S.sess[e.code];
+        if (ss0 && ss0.left <= 3 && e.status === '예정') nm.appendChild(el('span', 'badge', ss0.left <= 0 ? '횟수 소진' : '잔여' + ss0.left));
         b.appendChild(nm);
         if (isAdmin() && !$('sTrainer').value && SV.view === 'day') b.appendChild(el('div', '', e.trainer));
         b.onclick = function (ev) { ev.stopPropagation(); openDetail(e); };
@@ -2054,6 +2254,7 @@ var SJ = (function () {
     $('dWhen').textContent = fmtWhen(e); $('dWhen').style.whiteSpace = 'pre-line';
     $('dWho').textContent = isAdmin() ? '담당 ' + e.trainer : '';
     $('dMemo').textContent = e.memo ? '메모: ' + e.memo : '';
+    if (e.kind === '개인' || !e.code) $('dInfo').classList.add('hidden'); else showInfo(e.code);
     var st = $('dStatus'); st.innerHTML = '';
     st.classList.toggle('hidden', e.kind === '개인');
     ['예정', '완료', '노쇼', '취소'].forEach(function (s) {
@@ -2066,6 +2267,7 @@ var SJ = (function () {
         try {
           var j = await callApi({ action: 'setEventStatus', id: e.id, status: s, view: viewFor() });
           if (j.view && seq === SV.stSeq) { putWeek(j.view); if (curKey() === wKey(j.view.from, j.view.trainer)) showCached(); }
+          if (seq === SV.stSeq) { refreshSessionsSoon(); if (curEv && curEv.code === e.code) showInfo(e.code, true); }
         } catch (err) {
           if (seq !== SV.stSeq) return;
           setSt(prev); drawCal();
@@ -2288,7 +2490,7 @@ var SJ = (function () {
   var snap0 = store.get('token') ? readSnap() : null;
   if (snap0) {
     // 지난 화면 바로 열기 → 로그인 확인·최신 정보는 뒤에서 (일정도 동시에 받음)
-    S.me = snap0.me; S.center = snap0.center; S.closing = snap0.closing; S.model = snap0.model; S.pending = snap0.pending || 0;
+    S.me = snap0.me; S.center = snap0.center; S.closing = snap0.closing; S.model = snap0.model; S.pending = snap0.pending || 0; S.sess = snap0.sess || {};
     setMembers(snap0.members || []);
     enterApp(true);
     resume(true);
