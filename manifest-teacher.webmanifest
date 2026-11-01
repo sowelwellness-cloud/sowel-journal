@@ -1,0 +1,18 @@
+{
+  "name": "소웰 수업일지",
+  "short_name": "소웰 일지",
+  "description": "소웰 웰니스 PT 선생님용 수업일지·일정",
+  "id": "./index.html",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5EFE6",
+  "theme_color": "#F5EFE6",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon-teacher-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-teacher-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-teacher-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

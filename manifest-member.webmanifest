@@ -1,0 +1,31 @@
+{
+  "name": "소웰 웰니스",
+  "short_name": "소웰 웰니스",
+  "description": "소웰 웰니스 회원용 수업일지",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F37021",
+  "theme_color": "#F5EFE6",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icon-member-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-member-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-member-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
