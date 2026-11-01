@@ -3,7 +3,7 @@
  * 인터넷이 끊겼을 때만 마지막으로 받은 화면을 보여줘요.
  * 시트·AI 요청은 건드리지 않아요.
  */
-var CACHE = 'sowel-shell-v1';
+var CACHE = 'sowel-shell-v2';
 self.addEventListener('install', function () { self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (ks) {
@@ -25,5 +25,35 @@ self.addEventListener('fetch', function (e) {
         });
       });
     });
+  }));
+});
+
+/* ───── 푸시 알림 (Firebase가 전달한 데이터 메시지) ───── */
+self.addEventListener('push', function (e) {
+  var p = {};
+  try { p = e.data ? e.data.json() : {}; } catch (x) { p = { data: { body: e.data ? e.data.text() : '' } }; }
+  var d = p.data || {}, n = p.notification || {};
+  var title = d.title || n.title || '소웰 웰니스';
+  var opt = {
+    body: d.body || n.body || '',
+    icon: 'icon-member-192.png',
+    badge: 'icon-member-192.png',
+    tag: d.tag || undefined,
+    renotify: !!d.tag,
+    data: { url: d.url || (p.fcmOptions && p.fcmOptions.link) || './' }
+  };
+  if (/index\.html/.test(opt.data.url)) { opt.icon = 'icon-teacher-192.png'; opt.badge = 'icon-teacher-192.png'; }
+  e.waitUntil(self.registration.showNotification(title, opt));   // 아이폰은 받은 푸시를 꼭 화면에 보여줘야 함
+});
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var url = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+    var target = new URL(url, self.location.href).href.split('#')[0];
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      if (c.url.split('?')[0] === target.split('?')[0] && 'focus' in c) return c.focus();
+    }
+    return self.clients.openWindow ? self.clients.openWindow(target) : null;
   }));
 });
