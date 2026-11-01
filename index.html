@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.15.0">
+<meta name="sowel-version" content="0.16.0">
 <title>소웰 수업일지</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -151,6 +151,9 @@
   .ev.st-노쇼{outline:2px solid var(--err);outline-offset:-2px}
   .ev.st-취소{opacity:.35;text-decoration:line-through}
   .ev .badge{font-size:10px;font-weight:700;margin-left:2px}
+  .ev{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  .ev.dragging{z-index:30 !important;opacity:.92;box-shadow:0 6px 16px rgba(44,38,32,.28);outline:2px solid var(--brown);cursor:grabbing}
+  .dragtip{position:fixed;z-index:100;transform:translateX(-50%);background:var(--brown);color:#fff;font-size:12px;font-weight:700;border-radius:8px;padding:4px 8px;white-space:nowrap;pointer-events:none}
   .nowline{position:absolute;left:0;right:0;height:2px;background:var(--err);z-index:1;pointer-events:none}
   .nowline::before{content:'';position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--err)}
   .cal:not(.week) .ev{display:flex;flex-wrap:wrap;align-content:flex-start;column-gap:6px;padding:3px 6px;font-size:12px}
@@ -318,7 +321,7 @@
         <div class="msg" id="sMsg"></div>
       </section>
       <div class="cal" id="cal"></div>
-      <p class="note" style="text-align:center">빈 시간을 누르면 일정을 추가해요. 일정을 누르면 출석·일지 쓰기·수정을 할 수 있어요.</p>
+      <p class="note" style="text-align:center">빈 시간을 누르면 일정을 추가해요. 일정을 누르면 출석·일지 쓰기·수정을 할 수 있어요.<br>일정을 꾹 누른 채 끌면 다른 시간·요일로 옮겨져요.</p>
     </div>
 
     <!-- ───── 기록 ───── -->
@@ -1415,6 +1418,82 @@ var SJ = (function () {
     return card;
   }
 
+  // ───── 저장한 일지의 운동 부위 고치기 ─────
+  var EX_HEAD = /^(👍|🏠|➡|📝|🌿|📋)/;
+  /** 일지 글의 '💪' 부분 → {s, e, items:[{line, name, detail, part}]} (s~e = 바꿀 줄 범위) */
+  function exSection(text) {
+    var L = String(text || '').split('\n'), s = -1, e = L.length, part = '', items = [];
+    for (var i = 0; i < L.length; i++) {
+      var t = L[i].trim();
+      if (s < 0) { if (/^💪/.test(t)) s = i; continue; }
+      if (EX_HEAD.test(t)) { e = i; break; }
+      var hd = /^\[(.+)\]$/.exec(t);
+      if (hd) { part = SJ.PARTS.indexOf(hd[1]) >= 0 ? hd[1] : ''; continue; }
+      if (!/^- /.test(t)) continue;
+      var body = t.slice(2).trim(), m = /^(.*?)\s+((?:\d|약|맨몸|양쪽|한쪽|좌우).*)$/.exec(body);
+      items.push({ line: t, name: (m ? m[1] : body).trim(), detail: m ? m[2].trim() : '', part: part });
+    }
+    while (e > s + 1 && !L[e - 1].trim()) e--;          // 섹션 끝 빈 줄은 그대로 둠
+    return { lines: L, s: s, e: e, items: items };
+  }
+  /** 고른 부위대로 '💪' 부분을 [부위]별로 다시 묶음 (운동 줄 글자는 그대로) */
+  function regroupText(text, items) {
+    var sec = exSection(text);
+    if (sec.s < 0 || !items.length) return text;
+    var parts = [];
+    items.forEach(function (it) { if (parts.indexOf(it.part) < 0) parts.push(it.part); });
+    parts.sort(function (a, b) { return SJ.PARTS.indexOf(a) - SJ.PARTS.indexOf(b); });
+    var out = [];
+    parts.forEach(function (p) {
+      out.push('[' + p + ']');
+      items.filter(function (it) { return it.part === p; }).forEach(function (it) { out.push(it.line); });
+    });
+    return sec.lines.slice(0, sec.s + 1).concat(out, sec.lines.slice(sec.e)).join('\n');
+  }
+  /** 일지 수정 창 아래: 운동마다 부위 고르기 */
+  function editParts(ta, log) {
+    var box = el('div', 'partsbox');
+    box.appendChild(el('div', 'partshead', '운동 부위 — 틀렸으면 바꿔 주세요. 회원 페이지 부위별 기록에 바로 반영돼요.'));
+    var list = el('div'); box.appendChild(list);
+    var known = {};
+    (log.ex || []).forEach(function (x) { known[String(x.n || '').replace(/\s+/g, '')] = x.p; });
+    var picked = {};                                   // 이 창에서 고른 부위 (이름 → 부위)
+    function current() {
+      return exSection(ta.value).items.map(function (it) {
+        var k = it.name.replace(/\s+/g, '');
+        it.part = picked[k] || it.part || known[k] || '기타';
+        if (SJ.PARTS.indexOf(it.part) < 0) it.part = '기타';
+        return it;
+      });
+    }
+    function draw() {
+      var items = current();
+      list.innerHTML = '';
+      box.classList.toggle('hidden', !items.length);
+      items.forEach(function (it) {
+        var row = el('div', 'partrow');
+        row.appendChild(el('span', '', it.name + (it.detail ? ' · ' + it.detail : '')));
+        var sel = el('select'); sel.setAttribute('aria-label', it.name + ' 부위');
+        SJ.PARTS.forEach(function (p) { var o = el('option', '', p); o.value = p; sel.appendChild(o); });
+        sel.value = it.part;
+        sel.onchange = function () {
+          picked[it.name.replace(/\s+/g, '')] = sel.value;
+          ta.value = regroupText(ta.value, current());
+          draw();
+        };
+        row.appendChild(sel);
+        list.appendChild(row);
+      });
+    }
+    var tmr = null;
+    ta.addEventListener('input', function () { clearTimeout(tmr); tmr = setTimeout(draw, 400); });
+    draw();
+    return {
+      el: box,
+      exercises: function () { return current().map(function (it) { return { name: it.name, detail: it.detail, part: it.part }; }); }
+    };
+  }
+
   function openEditor(card, log, view, actions) {
     view.classList.add('hidden'); actions.classList.add('hidden');
     var box = el('div', 'editbox');
@@ -1424,15 +1503,18 @@ var SJ = (function () {
     var bSave = el('button', 'btn terra', '저장'), bCancel = el('button', 'btn ghost', '취소');
     row.appendChild(bSave); row.appendChild(bCancel);
     var lab = el('label', '', '수업 날짜'); lab.style.marginTop = '0';
-    box.appendChild(lab); box.appendChild(date); box.appendChild(ta); box.appendChild(row);
+    var ep = editParts(ta, log);
+    box.appendChild(lab); box.appendChild(date); box.appendChild(ta); box.appendChild(ep.el); box.appendChild(row);
     card.insertBefore(box, card._msg);
     date.onchange = function () { var d = parseYmd(date.value); if (d) ta.value = relabel(ta.value, d); };
     bCancel.onclick = function () { box.remove(); view.classList.remove('hidden'); actions.classList.remove('hidden'); card._msg.textContent = ''; };
     bSave.onclick = async function () {
       bSave.disabled = true; bSave.textContent = '저장 중…';
       try {
-        await callApi({ action: 'editLog', id: log.id, text: ta.value, date: date.value });
+        var exs = ep.exercises();
+        await callApi({ action: 'editLog', id: log.id, text: ta.value, date: date.value, exercises: exs });
         log.text = ta.value.trim(); log.date = date.value || log.date; log.editedAt = Date.now();
+        log.ex = exs.map(function (x) { return { n: x.name, d: x.detail, p: x.part }; });
         var fresh = logCard(log); fresh.open = true;
         card.replaceWith(fresh);
         fresh._msg.className = 'msg ok'; fresh._msg.textContent = '고쳤어요. 회원 페이지에도 바로 반영돼요.';
@@ -2247,6 +2329,7 @@ var SJ = (function () {
   }
 
   function drawCal() {
+    if (SV.dragging) return;                // 끄는 중에는 다시 그리지 않음 (놓으면 그림)
     HOUR_PX = SV.view === 'week' ? 32 : 48;
     var days = range(), cal = $('cal');
     cal.innerHTML = '';
@@ -2266,6 +2349,7 @@ var SJ = (function () {
     });
     cal.appendChild(head);
     var body = el('div', 'calbody'), H = (eh - sh) * HOUR_PX;
+    var cx = { sh: sh, eh: eh, days: days, body: body };
     var tcol = el('div', 'tcol'); tcol.style.height = H + 'px';
     for (var hh = sh; hh < eh; hh++) {
       var lb = el('span', '', (hh < 12 ? '오전 ' : '오후 ') + ((hh % 12) || 12)); if (SV.view === 'week') lb.textContent = String(hh);
@@ -2323,8 +2407,9 @@ var SJ = (function () {
         if (ss0 && ss0.left <= 3 && e.status === '예정') nm.appendChild(el('span', 'badge', ss0.left <= 0 ? '횟수 소진' : '잔여' + ss0.left));
         b.appendChild(nm);
         if (isAdmin() && !$('sTrainer').value && SV.view === 'day') b.appendChild(el('div', '', e.trainer));
-        b.onclick = function (ev) { ev.stopPropagation(); openDetail(e); };
+        b.onclick = function (ev) { ev.stopPropagation(); if (dragSuppress) return; openDetail(e); };
         col.appendChild(b);
+        enableDrag(b, e, cx);
       });
       if (y === today) {
         var nowM = new Date().getHours() * 60 + new Date().getMinutes();
@@ -2334,6 +2419,90 @@ var SJ = (function () {
     });
     cal.appendChild(body);
     if (!evs.length) msg('sMsg', SV.view === 'day' ? '이날은 일정이 없어요.' : '이번 주는 일정이 없어요.');
+  }
+  // ───── 일정 끌어서 옮기기 (폰: 꾹 누른 뒤 끌기, PC: 그냥 끌기) ─────
+  var dragTip = null, dragSuppress = false;
+  function enableDrag(b, e, cx) {
+    if (!(isAdmin() || e.mine)) return;
+    if (e.kind !== '개인' && e.status !== '예정') return;       // 완료·노쇼·취소는 기록이라 안 움직임
+    var st = null, timer = null, sx = 0, sy = 0;
+    function begin(x, y) {
+      var r = b.getBoundingClientRect();
+      st = { grabY: y - r.top, col: b.parentNode, ci: cx.days.indexOf(e.date), moved: false, newDate: e.date, newMin: hmToMin(e.start) };
+      b.classList.add('dragging'); SV.dragging = true;
+      if (!dragTip) { dragTip = el('div', 'dragtip'); document.body.appendChild(dragTip); }
+      try { if (navigator.vibrate) navigator.vibrate(10); } catch (x2) {}
+      move(x, y);
+    }
+    function move(x, y) {
+      var cols = cx.body.querySelectorAll('.dcol'), ci = st.ci;
+      for (var i = 0; i < cols.length; i++) { var rc = cols[i].getBoundingClientRect(); if (x >= rc.left && x < rc.right) { ci = i; break; } }
+      var cr = cols[ci].getBoundingClientRect(), home = st.col.getBoundingClientRect();
+      var m = cx.sh * 60 + Math.round(((y - cr.top - st.grabY) / HOUR_PX * 60) / 10) * 10;
+      m = Math.max(cx.sh * 60, Math.min(m, Math.min(24 * 60, cx.eh * 60) - e.min));
+      st.newDate = cx.days[ci]; st.newMin = m; st.moved = true;
+      b.style.top = ((m - cx.sh * 60) / 60 * HOUR_PX) + 'px';
+      b.style.left = '0'; b.style.width = 'calc(100% - 2px)';
+      b.style.transform = 'translateX(' + (cr.left - home.left) + 'px)';
+      var d = parseYmd(st.newDate);
+      dragTip.textContent = (d.getMonth() + 1) + '/' + d.getDate() + '(' + DOW[d.getDay()] + ') ' + minToHm(m) + ' – ' + minToHm(m + e.min);
+      dragTip.style.left = x + 'px'; dragTip.style.top = (y - 44) + 'px';
+      dragTip.classList.remove('hidden');
+    }
+    function end() {
+      clearTimeout(timer); timer = null;
+      if (!st) return;
+      var s2 = st; st = null;
+      b.classList.remove('dragging'); SV.dragging = false; if (dragTip) dragTip.classList.add('hidden');
+      dragSuppress = true; setTimeout(function () { dragSuppress = false; }, 350);
+      if (!s2.moved || (s2.newDate === e.date && s2.newMin === hmToMin(e.start))) { drawCal(); return; }
+      moveEvent(e, s2.newDate, minToHm(s2.newMin));
+    }
+    // 폰: 0.35초 꾹 누르면 잡힘. 그 전에 움직이면 그냥 화면 스크롤
+    b.addEventListener('touchstart', function (ev) {
+      if (ev.touches.length !== 1) return;
+      sx = ev.touches[0].clientX; sy = ev.touches[0].clientY;
+      clearTimeout(timer);
+      timer = setTimeout(function () { timer = null; begin(sx, sy); }, 350);
+    }, { passive: true });
+    b.addEventListener('touchmove', function (ev) {
+      var t = ev.touches[0];
+      if (st) { ev.preventDefault(); move(t.clientX, t.clientY); return; }
+      if (timer && (Math.abs(t.clientX - sx) > 8 || Math.abs(t.clientY - sy) > 8)) { clearTimeout(timer); timer = null; }
+    }, { passive: false });
+    b.addEventListener('touchend', function (ev) { if (st) { ev.preventDefault(); end(); } else { clearTimeout(timer); timer = null; } });
+    b.addEventListener('touchcancel', function () { if (st) end(); clearTimeout(timer); timer = null; });
+    b.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
+    // PC: 누른 채 5px 넘게 움직이면 끌기
+    b.addEventListener('mousedown', function (ev) {
+      if (ev.button !== 0) return;
+      sx = ev.clientX; sy = ev.clientY;
+      function mm(e2) {
+        if (!st && (Math.abs(e2.clientX - sx) > 5 || Math.abs(e2.clientY - sy) > 5)) begin(sx, sy);
+        if (st) { e2.preventDefault(); move(e2.clientX, e2.clientY); }
+      }
+      function mu() { document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); end(); }
+      document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu);
+    });
+  }
+  /** 옮긴 자리를 바로 보여주고 저장 (실패하면 되돌림). 반복 일정은 이 일정만 옮김 */
+  async function moveEvent(e, date, start) {
+    var prev = { date: e.date, start: e.start };
+    e.date = date; e.start = start; drawCal();
+    var body = { action: 'saveEvent', id: e.id, scope: 'one', kind: e.kind, code: e.code, title: e.title,
+                 date: date, start: start, min: e.min, memo: e.memo, view: viewFor() };
+    if (isAdmin()) body.trainer = e.trainer;
+    var d = parseYmd(date);
+    msg('sMsg', '옮기는 중…');
+    try {
+      var j = await callApi(body);
+      SV.flash = (e.kind === '개인' ? e.title : e.member + '님 수업') + '을 ' + (d.getMonth() + 1) + '/' + d.getDate() + '(' + DOW[d.getDay()] + ') ' + start + '로 옮겼어요.' +
+        (e.series ? ' 반복 일정은 이 날만 옮겨져요.' : '');
+      afterWrite(j, false);
+    } catch (err) {
+      e.date = prev.date; e.start = prev.start; drawCal();
+      msg('sMsg', '옮기지 못해 되돌렸어요: ' + err.message, 'err');
+    }
   }
   function saveView() { try { localStorage.setItem('sj_sview', SV.view); } catch (e) {} }
 
