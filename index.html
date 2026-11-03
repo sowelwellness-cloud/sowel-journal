@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.18.0">
+<meta name="sowel-version" content="0.19.0">
 <title>소웰 수업일지</title>
 <link rel="manifest" href="manifest-teacher.webmanifest">
 <link rel="apple-touch-icon" href="icon-teacher-180.png">
@@ -218,6 +218,25 @@ window.SOWEL_PUSH = (function () {
   .joincode b{font-size:18px;letter-spacing:.12em;font-variant-numeric:tabular-nums}
   .joincode span{color:var(--muted)}
   .joincode .btn:first-of-type{margin-left:auto}
+  .tab{padding-left:2px;padding-right:2px;white-space:nowrap}
+  .ntc{border-top:1px solid #EFE6D8;padding:12px 0}
+  .ntc:first-child{border-top:0;padding-top:4px}
+  .ntc .nt{font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .ntc .nd{font-size:12px;color:var(--muted);margin-top:2px}
+  .ntc .nb{font-size:14px;line-height:1.6;margin-top:6px;white-space:pre-wrap;word-break:break-word}
+  .ntc .nb.clip{max-height:4.8em;overflow:hidden;position:relative}
+  .ntc .nb.clip::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1.6em;background:linear-gradient(transparent,var(--card))}
+  .ntc .na{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .ntc.off{opacity:.5}
+  .newb{font-size:11px;font-weight:700;color:#fff;background:var(--terra);border-radius:99px;padding:1px 7px}
+  .sg{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;background:#FBF7F1}
+  .sg .sh{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+  .sg .sh .chip{margin-left:0}
+  .sg .sb{font-size:14px;line-height:1.6;margin-top:6px;white-space:pre-wrap;word-break:break-word}
+  .sg .sr{margin-top:8px;padding:8px 10px;border-left:3px solid var(--terra);background:var(--card);border-radius:0 8px 8px 0;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+  .sg .sr b{display:block;font-size:12px;color:var(--terra);margin-bottom:2px}
+  .chk{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--brown);margin:10px 0 0;cursor:pointer}
+  .chk input{width:20px;height:20px;accent-color:var(--terra);margin:0;flex:0 0 auto}
   .tab .dot{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:var(--terra);color:#fff;font-size:11px;line-height:18px;margin-left:4px;padding:0 5px;vertical-align:1px}
 
   /* ───── 일정 ───── */
@@ -402,6 +421,7 @@ window.SOWEL_PUSH = (function () {
       <button class="tab on" data-tab="sched" role="tab">일정</button>
       <button class="tab" data-tab="record" role="tab">기록</button>
       <button class="tab" data-tab="logs" role="tab" id="logsTabBtn">내 일지</button>
+      <button class="tab" data-tab="talk" role="tab" id="talkTabBtn">공지</button>
       <button class="tab hidden" data-tab="admin" role="tab" id="adminTabBtn">관리</button>
     </nav>
 
@@ -508,6 +528,43 @@ window.SOWEL_PUSH = (function () {
       </section>
       <div id="logList"></div>
       <div class="row hidden" id="moreRow"><button class="btn ghost" id="moreBtn">더 보기</button></div>
+    </div>
+
+    <!-- ───── 공지 · 건의 ───── -->
+    <div class="hidden" id="tab-talk">
+      <section class="card">
+        <h2 style="display:flex;align-items:center">📢 공지사항<button class="btn terra small adminOnly hidden" id="ntNewBtn" style="margin-left:auto">＋ 공지 쓰기</button></h2>
+        <div class="hidden" id="ntForm">
+          <label for="ntTitle">제목</label><input id="ntTitle" type="text" maxlength="60" placeholder="예: 11월 15일(토) 센터 휴무">
+          <label for="ntBody">내용</label><textarea id="ntBody" maxlength="2000" style="min-height:100px" placeholder="자세한 내용 (안 써도 돼요)"></textarea>
+          <label>누구에게</label>
+          <div class="seg" id="ntTarget"><button data-t="모두" class="on">모두</button><button data-t="회원">회원만</button><button data-t="선생님">선생님만</button></div>
+          <label class="chk"><input type="checkbox" id="ntPin"> 📌 맨 위에 고정</label>
+          <label class="chk"><input type="checkbox" id="ntPush" checked> 🔔 알림도 보내기 <span class="note" style="margin:0">(알림을 켠 폰에만 가요)</span></label>
+          <div class="row"><button class="btn terra" id="ntSave">올리기</button><button class="btn ghost" id="ntCancel">취소</button></div>
+          <div class="msg" id="ntFormMsg"></div>
+        </div>
+        <div id="ntList"></div>
+        <div class="msg" id="ntMsg"></div>
+      </section>
+
+      <section class="card">
+        <h2>💬 건의하기</h2>
+        <p class="sub">센터에 바라는 점, 불편한 점을 편하게 적어 주세요.</p>
+        <textarea id="sgBody" maxlength="1500" style="min-height:90px;margin-top:10px" placeholder="예: 폼롤러가 하나 더 있으면 좋겠어요"></textarea>
+        <label class="chk"><input type="checkbox" id="sgAnon"> 익명으로 보내기</label>
+        <p class="note hidden" id="sgAnonNote">이름이 대표에게도, 시트에도 남지 않아요. 답변은 지금 이 폰에서만 볼 수 있어요.</p>
+        <div class="row"><button class="btn terra" id="sgSend">보내기</button></div>
+        <div class="msg" id="sgMsg"></div>
+        <div id="sgMineBox" class="hidden"><h3 style="margin:18px 0 0;font-size:15px">내 건의 · 답변</h3><div id="sgMine"></div></div>
+      </section>
+
+      <section class="card adminOnly hidden" id="sgInBox">
+        <h2>📥 받은 건의 <span class="chip terra hidden" id="sgNewCount">0</span></h2>
+        <div class="seg" id="sgFilter" style="margin-top:10px"><button data-f="new" class="on">답변 전</button><button data-f="all">전체</button></div>
+        <div id="sgIn"></div>
+        <div class="msg" id="sgInMsg"></div>
+      </section>
     </div>
 
     <!-- ───── 관리 (관리자) ───── -->
@@ -624,7 +681,7 @@ window.SOWEL_PUSH = (function () {
 
         <details id="pushBox" class="hidden" style="margin-top:10px">
           <summary style="font-size:14px">🔔 알림 받기</summary>
-          <p class="note">내일 수업 안내(매일 저녁)<span class="adminOnly">와 새 선생님 가입 요청</span>을 이 폰으로 알려 드려요.</p>
+          <p class="note">내일 수업 안내(매일 저녁)와 새 공지<span class="adminOnly">, 새 건의, 새 선생님 가입 요청</span>을 이 폰으로 알려 드려요.</p>
           <p class="note" id="pushState"></p>
           <div class="row"><button class="btn terra" id="pushOn">이 폰에서 알림 받기</button><button class="btn ghost hidden" id="pushTest">테스트 알림</button><button class="btn ghost hidden" id="pushOff">알림 끄기</button></div>
           <div class="msg" id="pushMsg"></div>
@@ -955,7 +1012,7 @@ var SJ = (function () {
     if (!S.me || !store.get('token')) return;
     try {
       localStorage.setItem('sj_snap', JSON.stringify({ me: S.me, center: S.center, closing: S.closing, model: S.model,
-        pending: S.pending, members: S.members, sess: S.sess || {}, valid: S.valid || {}, push: S.push || null, at: Date.now() }));
+        pending: S.pending, members: S.members, sess: S.sess || {}, valid: S.valid || {}, push: S.push || null, notices: S.notices || [], at: Date.now() }));
     } catch (e) {}
   }
   function readSnap() {
@@ -972,7 +1029,7 @@ var SJ = (function () {
     var prev = S.me ? S.me.name + '|' + S.me.role : '';
     var inApp = !$('appView').classList.contains('hidden');
     S.me = j.me; S.center = j.center; S.closing = j.closing; S.apiKey = j.apiKey; S.model = j.model; S.pending = j.pending || 0;
-    S.push = j.push || null;
+    S.push = j.push || null; S.notices = j.notices || []; S.newSugg = j.newSugg || 0;
     if (j.needAccount) { clearSnap(); setMembers(j.members || []); showAccountSetup(); return; }
     setMembers(j.members || []);
     saveSnap();
@@ -983,8 +1040,9 @@ var SJ = (function () {
   function refreshApp() {
     $('whoName').textContent = S.me.name + (isAdmin() ? ' · 관리자' : ' 선생님');
     $('myId').textContent = S.me.id || '-';
-    setAdminTabLabel();
+    setAdminTabLabel(); setTalkDot();
     $('pendingSection').classList.toggle('hidden', !isAdmin() || !S.pending);
+    if (currentTab === 'talk') renderTalk();
     if (!apiKey()) setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err');
     pushUI(); pushSilentRefresh();
   }
@@ -1036,7 +1094,7 @@ var SJ = (function () {
     if (pt && store.get('token')) { try { callApi({ action: 'pushSub', off: true, pt: pt }).catch(function () {}); } catch (e) {} }
     store.del('pushtok');
     store.del('token'); store.del('pin'); clearSnap();
-    S.me = null; currentTab = 'sched'; SV.cache = {}; $('teacherList').innerHTML = ''; S.sess = {}; S.valid = {}; S.info = {}; openReg = '';
+    S.me = null; currentTab = 'sched'; SV.cache = {}; $('teacherList').innerHTML = ''; S.sess = {}; S.valid = {}; S.info = {}; openReg = ''; S.notices = []; S.mine = []; S.allNotices = null; S.sugg = []; S.newSugg = 0;
     $('pinIn').value = ''; $('pwIn').value = '';
     showLogin();
     msg('loginMsg', reason || '로그아웃했어요.', reason ? 'err' : 'ok');
@@ -1050,7 +1108,7 @@ var SJ = (function () {
     $('whoName').textContent = S.me.name + (isAdmin() ? ' · 관리자' : ' 선생님');
     $('myId').textContent = S.me.id || '-';
     $('adminTabBtn').classList.remove('hidden');
-    setAdminTabLabel();
+    setAdminTabLabel(); setTalkDot();
     Array.prototype.forEach.call(document.querySelectorAll('.adminOnly'), function (x) { x.classList.toggle('hidden', !isAdmin()); });
     $('pendingSection').classList.toggle('hidden', !isAdmin() || !S.pending);
     $('memberSectionTitle').textContent = isAdmin() ? '회원' : '내 회원';
@@ -1070,6 +1128,199 @@ var SJ = (function () {
     if (!fromSnap && !apiKey()) { if (isAdmin()) $('settingsBox').open = true; setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err'); }
   }
 
+  // ═════════ 공지 · 건의 ═════════
+  var TK = {
+    key: function () { return 'sgt_' + (S.me ? (S.me.id || S.me.name) : ''); },
+    list: function () { try { var a = JSON.parse(store.get(TK.key()) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } },
+    add: function (id) { var a = TK.list(); if (a.indexOf(id) < 0) a.unshift(id); store.set(TK.key(), JSON.stringify(a.slice(0, 50))); }
+  };
+  function seenKey() { return 'nseen_' + (S.me ? (S.me.id || S.me.name) : ''); }
+  function unreadNotices() {
+    var seen = Number(store.get(seenKey()) || 0);
+    return (S.notices || []).filter(function (n) { return n.at > seen; }).length;
+  }
+  function setTalkDot() {
+    var b = $('talkTabBtn'); if (!b) return;
+    if (S.me && !store.get(seenKey())) store.set(seenKey(), String(Date.now() - 7 * 86400e3));   // 처음 쓰는 폰: 최근 7일 공지만 '새 글'
+    var n = unreadNotices() + (isAdmin() ? (S.newSugg || 0) : 0);
+    b.textContent = '공지';
+    if (n) b.appendChild(el('span', 'dot', String(n)));
+  }
+  function kday(ms) {
+    if (!ms) return '';
+    var d = new Date(ms), now = new Date();
+    var s = (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
+    if (d.getFullYear() !== now.getFullYear()) s = d.getFullYear() + '년 ' + s;
+    return s + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+  var talkLoading = false;
+  var talkAt = 0;
+  // 알림을 눌러 앱으로 돌아오면 공지·건의 숫자를 새로
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && S.me && store.get('token') && Date.now() - talkAt > 60000) loadTalk();
+  });
+  async function loadTalk() {
+    if (talkLoading) return; talkLoading = true; talkAt = Date.now();
+    try {
+      var j = await callApi({ action: 'notices', tickets: TK.list() });
+      S.notices = j.notices || []; S.mine = j.mine || [];
+      if (isAdmin()) { S.allNotices = j.all || []; S.sugg = j.sugg || []; S.newSugg = S.sugg.filter(function (x) { return x.status === '새 건의'; }).length; }
+      saveSnap(); renderTalk(); msg('ntMsg', '');
+    } catch (e) { msg('ntMsg', e.message, 'err'); }
+    finally { talkLoading = false; }
+  }
+  function renderTalk() {
+    var seen = Number(store.get(seenKey()) || 0);
+    var box = $('ntList'); box.innerHTML = '';
+    var list = isAdmin() && S.allNotices ? S.allNotices : (S.notices || []);
+    if (!list.length) box.appendChild(el('p', 'note', '아직 공지가 없어요.'));
+    list.forEach(function (n) { box.appendChild(noticeCard(n, seen)); });
+    // 다 봤으면 읽음 처리
+    var top = Math.max.apply(null, [seen].concat((S.notices || []).map(function (n) { return n.at; })));
+    if (currentTab === 'talk' && top > seen) store.set(seenKey(), String(top));
+    renderMine(); renderInbox(); setTalkDot();
+  }
+  function noticeCard(n, seen) {
+    var c = el('div', 'ntc');
+    var t = el('div', 'nt');
+    if (n.pin) t.appendChild(el('span', '', '📌'));
+    t.appendChild(el('span', '', n.title));
+    if (seen && n.at > seen) t.appendChild(el('span', 'newb', 'NEW'));
+    if (isAdmin() && n.target) t.appendChild(el('span', 'chip soft', n.target === '모두' ? '모두' : n.target + '만'));
+    c.appendChild(t);
+    c.appendChild(el('div', 'nd', kday(n.at) + (isAdmin() && n.by ? ' · ' + n.by : '')));
+    if (n.body) {
+      var b = el('div', 'nb', n.body); c.appendChild(b);
+      if (n.body.length > 120 || n.body.split('\n').length > 3) {
+        b.classList.add('clip');
+        var more = el('button', 'link', '더 보기');
+        more.onclick = function () { b.classList.toggle('clip'); more.textContent = b.classList.contains('clip') ? '더 보기' : '접기'; };
+        c.appendChild(more);
+      }
+    }
+    if (isAdmin() && S.allNotices) {
+      var a = el('div', 'na');
+      var pin = el('button', 'btn ghost small', n.pin ? '고정 풀기' : '📌 고정');
+      pin.onclick = function () { editNotice({ id: n.id, pin: !n.pin }, pin); };
+      var del = el('button', 'btn ghost small danger', '내리기');
+      del.onclick = function () {
+        if (!del.dataset.sure) { del.dataset.sure = '1'; del.textContent = '한 번 더 누르면 내려요'; setTimeout(function () { delete del.dataset.sure; del.textContent = '내리기'; }, 4000); return; }
+        editNotice({ id: n.id, remove: true }, del);
+      };
+      a.appendChild(pin); a.appendChild(del); c.appendChild(a);
+    }
+    return c;
+  }
+  async function editNotice(b, btn) {
+    btn.disabled = true;
+    try {
+      b.action = 'editNotice';
+      var j = await callApi(b);
+      S.allNotices = j.notices; S.notices = j.notices.filter(function (n) { return n.target !== '회원'; });
+      renderTalk();
+    } catch (e) { msg('ntMsg', e.message, 'err'); btn.disabled = false; }
+  }
+  // 공지 쓰기
+  var ntTarget = '모두';
+  Array.prototype.forEach.call($('ntTarget').children, function (b) {
+    b.onclick = function () { ntTarget = b.dataset.t; Array.prototype.forEach.call($('ntTarget').children, function (x) { x.classList.toggle('on', x === b); }); };
+  });
+  $('ntNewBtn').onclick = function () { $('ntForm').classList.toggle('hidden'); if (!$('ntForm').classList.contains('hidden')) $('ntTitle').focus(); };
+  $('ntCancel').onclick = function () { $('ntForm').classList.add('hidden'); msg('ntFormMsg', ''); };
+  $('ntSave').onclick = async function () {
+    var title = $('ntTitle').value.trim();
+    if (!title) { msg('ntFormMsg', '제목을 적어 주세요.', 'err'); $('ntTitle').focus(); return; }
+    var btn = $('ntSave'); btn.disabled = true; msg('ntFormMsg', '올리는 중…');
+    try {
+      var j = await callApi({ action: 'saveNotice', title: title, body: $('ntBody').value, target: ntTarget, pin: $('ntPin').checked, push: $('ntPush').checked });
+      S.allNotices = j.notices; S.notices = j.notices.filter(function (n) { return n.target !== '회원'; });
+      $('ntTitle').value = ''; $('ntBody').value = ''; $('ntPin').checked = false;
+      $('ntForm').classList.add('hidden');
+      msg('ntMsg', '공지를 올렸어요 ✅' + (j.sent ? ' 알림 ' + j.sent + '대에 보냈어요.' : j.sent === 0 ? ' (알림을 켠 폰이 아직 없어서 알림은 안 갔어요)' : ''), 'ok');
+      renderTalk();
+    } catch (e) { msg('ntFormMsg', e.message, 'err'); }
+    finally { btn.disabled = false; }
+  };
+  // 건의 보내기
+  $('sgAnon').onchange = function () { $('sgAnonNote').classList.toggle('hidden', !$('sgAnon').checked); };
+  $('sgSend').onclick = async function () {
+    var body = $('sgBody').value.trim();
+    if (body.length < 2) { msg('sgMsg', '건의 내용을 적어 주세요.', 'err'); $('sgBody').focus(); return; }
+    var btn = $('sgSend'); btn.disabled = true; msg('sgMsg', '보내는 중…');
+    try {
+      var anon = $('sgAnon').checked;
+      var j = await callApi({ action: 'suggest', body: body, anon: anon, tickets: TK.list() });
+      if (anon) TK.add(j.id);
+      S.mine = j.mine || [];
+      $('sgBody').value = ''; $('sgAnon').checked = false; $('sgAnonNote').classList.add('hidden');
+      msg('sgMsg', (anon ? '익명으로 ' : '') + '보냈어요. 고마워요 🙏', 'ok');
+      renderMine();
+      if (isAdmin()) loadTalk();
+    } catch (e) { msg('sgMsg', e.message, 'err'); }
+    finally { btn.disabled = false; }
+  };
+  function sgStatusChip(st) { return el('span', 'chip ' + (st === '답변 완료' ? 'terra' : st === '확인함' ? '' : 'soft'), st); }
+  function renderMine() {
+    var list = S.mine || [], box = $('sgMine'); box.innerHTML = '';
+    $('sgMineBox').classList.toggle('hidden', !list.length);
+    list.forEach(function (s) {
+      var c = el('div', 'sg'), h = el('div', 'sh');
+      h.appendChild(sgStatusChip(s.status));
+      if (s.anon) h.appendChild(el('span', 'chip soft', '익명'));
+      h.appendChild(el('span', '', kday(s.at)));
+      c.appendChild(h); c.appendChild(el('div', 'sb', s.body));
+      if (s.reply) { var r = el('div', 'sr'); r.appendChild(el('b', '', '센터 답변 · ' + kday(s.replyAt))); r.appendChild(document.createTextNode(s.reply)); c.appendChild(r); }
+      box.appendChild(c);
+    });
+  }
+  // 받은 건의 (관리자)
+  var sgFilter = 'new';
+  Array.prototype.forEach.call($('sgFilter').children, function (b) {
+    b.onclick = function () { sgFilter = b.dataset.f; Array.prototype.forEach.call($('sgFilter').children, function (x) { x.classList.toggle('on', x === b); }); renderInbox(); };
+  });
+  function renderInbox() {
+    if (!isAdmin()) return;
+    var all = S.sugg || [], box = $('sgIn'); box.innerHTML = '';
+    var nNew = all.filter(function (x) { return x.status !== '답변 완료'; }).length;
+    $('sgNewCount').textContent = nNew; $('sgNewCount').classList.toggle('hidden', !nNew);
+    var list = sgFilter === 'new' ? all.filter(function (x) { return x.status !== '답변 완료'; }) : all;
+    if (!list.length) box.appendChild(el('p', 'note', sgFilter === 'new' ? '답변할 건의가 없어요 👍' : '아직 받은 건의가 없어요.'));
+    list.forEach(function (s) {
+      var c = el('div', 'sg'), h = el('div', 'sh');
+      h.appendChild(sgStatusChip(s.status));
+      h.appendChild(el('span', 'chip', s.kind || ''));
+      h.appendChild(el('b', '', s.anon ? '익명' : s.name)); h.appendChild(el('span', '', kday(s.at)));
+      c.appendChild(h); c.appendChild(el('div', 'sb', s.body));
+      if (s.reply) { var r = el('div', 'sr'); r.appendChild(el('b', '', '답변 · ' + kday(s.replyAt))); r.appendChild(document.createTextNode(s.reply)); c.appendChild(r); }
+      var a = el('div', 'na'); a.style.cssText = 'display:flex;gap:6px;margin-top:8px;flex-wrap:wrap';
+      var rb = el('button', 'btn terra small', s.reply ? '답변 고치기' : '답변하기');
+      var form = el('div', 'hidden');
+      var ta = el('textarea'); ta.maxLength = 1500; ta.style.cssText = 'min-height:70px;margin-top:8px'; ta.value = s.reply || '';
+      ta.placeholder = s.anon ? '익명 건의예요. 보낸 분이 앱에서 확인해요 (알림은 안 가요).' : '답변을 적으면 ' + (s.name || '') + '님에게 알림이 가요.';
+      var row = el('div', 'row'), send = el('button', 'btn terra', '답변 보내기'), m = el('div', 'msg');
+      row.appendChild(send); form.appendChild(ta); form.appendChild(row); form.appendChild(m);
+      rb.onclick = function () { form.classList.toggle('hidden'); if (!form.classList.contains('hidden')) ta.focus(); };
+      send.onclick = function () {
+        if (!ta.value.trim()) { m.className = 'msg err'; m.textContent = '답변을 적어 주세요.'; return; }
+        replySugg({ id: s.id, reply: ta.value }, send, m);
+      };
+      a.appendChild(rb);
+      if (s.status === '새 건의') { var ck = el('button', 'btn ghost small', '확인함'); ck.onclick = function () { replySugg({ id: s.id, status: '확인함' }, ck, m); }; a.appendChild(ck); }
+      c.appendChild(a); c.appendChild(form);
+      box.appendChild(c);
+    });
+  }
+  async function replySugg(b, btn, m) {
+    btn.disabled = true; m.className = 'msg'; m.textContent = '저장 중…';
+    try {
+      b.action = 'replySugg';
+      var j = await callApi(b);
+      S.sugg = j.list || []; S.newSugg = S.sugg.filter(function (x) { return x.status === '새 건의'; }).length;
+      msg('sgInMsg', b.reply ? '답변을 보냈어요 ✅' : '확인함으로 바꿨어요', 'ok');
+      renderInbox(); setTalkDot();
+    } catch (e) { m.className = 'msg err'; m.textContent = e.message; btn.disabled = false; }
+  }
+
   function setAdminTabLabel() {
     var b = $('adminTabBtn');
     b.textContent = isAdmin() ? '관리' : '회원';
@@ -1080,11 +1331,12 @@ var SJ = (function () {
   var currentTab = 'sched';
   function showTab(name) {
     currentTab = name;
-    ['sched', 'record', 'logs', 'admin'].forEach(function (t) { $('tab-' + t).classList.toggle('hidden', t !== name); });
+    ['sched', 'record', 'logs', 'talk', 'admin'].forEach(function (t) { $('tab-' + t).classList.toggle('hidden', t !== name); });
     if (name === 'sched') loadSchedule();
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) { b.classList.toggle('on', b.dataset.tab === name); });
     if (name === 'logs' && !logsLoaded) loadLogs();
     if (name === 'admin') { if (isAdmin()) loadTeachers(); else renderMemberList(); loadSessions(); loadStats(); }
+    if (name === 'talk') { renderTalk(); loadTalk(); }
   }
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
     b.onclick = function () { showTab(b.dataset.tab); };
@@ -2929,7 +3181,7 @@ var SJ = (function () {
   var snap0 = store.get('token') ? readSnap() : null;
   if (snap0) {
     // 지난 화면 바로 열기 → 로그인 확인·최신 정보는 뒤에서 (일정도 동시에 받음)
-    S.me = snap0.me; S.center = snap0.center; S.closing = snap0.closing; S.model = snap0.model; S.pending = snap0.pending || 0; S.sess = snap0.sess || {}; S.valid = snap0.valid || {}; S.push = snap0.push || null;
+    S.me = snap0.me; S.center = snap0.center; S.closing = snap0.closing; S.model = snap0.model; S.pending = snap0.pending || 0; S.sess = snap0.sess || {}; S.valid = snap0.valid || {}; S.push = snap0.push || null; S.notices = snap0.notices || [];
     setMembers(snap0.members || []);
     enterApp(true);
     resume(true);

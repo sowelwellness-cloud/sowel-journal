@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.14.1">
+<meta name="sowel-version" content="0.15.1">
 <meta name="robots" content="noindex,nofollow">
 <title>나의 수업일지 · SOWEL</title>
 <link rel="manifest" href="manifest-member.webmanifest">
@@ -248,6 +248,45 @@ var SOWEL_UPD = (function () {
   .hwbtn:disabled{opacity:.6}
   .hwmsg{font-size:12px;color:#B3261E;min-height:0;padding-bottom:6px}
   /* 무게 변화 */
+  .mtabs{position:sticky;top:0;z-index:5;display:flex;gap:6px;margin:16px -16px 0;padding:8px 16px;background:var(--cream)}
+  .mtabs .in{display:flex;gap:6px;flex:1;background:var(--soft);padding:4px;border-radius:14px}
+  .mtab{flex:1;border:0;background:transparent;font:inherit;font-size:15px;font-weight:500;color:var(--muted);padding:10px 0;border-radius:11px;cursor:pointer;white-space:nowrap}
+  .mtab.on{background:var(--card);color:var(--brown);font-weight:700;box-shadow:0 1px 3px rgba(44,38,32,.12)}
+  .mtab .bdg{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:var(--terra);color:#fff;font-size:11px;line-height:18px;margin-left:5px;padding:0 5px;vertical-align:1px;font-weight:700}
+  .nbanner{display:flex;align-items:center;gap:10px;width:100%;margin-top:12px;background:var(--card);border:1px solid var(--terra);border-radius:14px;padding:11px 14px;font:inherit;font-size:14px;color:var(--brown);text-align:left;cursor:pointer}
+  .nbanner .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nbanner .t b{color:var(--terra);margin-right:4px}
+  .nbanner .go{flex:0 0 auto;color:var(--terra);font-size:13px;font-weight:700}
+  .ntempty{padding:16px 0;font-size:14px;color:var(--muted);text-align:center}
+  .ntbox{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:4px 16px}
+  .ntc{border-top:1px solid var(--soft);padding:12px 0}
+  .ntc:first-child{border-top:0}
+  .ntc .nt{font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.45}
+  .ntc .nd{font-size:12px;color:var(--muted);margin-top:2px}
+  .ntc .nb{font-size:14px;line-height:1.65;margin-top:6px;white-space:pre-wrap;word-break:break-word}
+  .ntc .nb.clip{max-height:4.95em;overflow:hidden;position:relative}
+  .ntc .nb.clip::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1.65em;background:linear-gradient(rgba(255,253,249,0),var(--card))}
+  .lnk{background:none;border:0;padding:4px 0 0;font:inherit;font-size:13px;color:var(--terra);cursor:pointer}
+  .ntmore{display:block;width:100%;text-align:center;border-top:1px solid var(--soft);padding:10px 0}
+  .sgbox{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+  .sgbox p{margin:0;font-size:13px;color:var(--muted)}
+  .sgbox textarea{width:100%;margin-top:10px;min-height:88px;font:inherit;font-size:15px;color:var(--brown);background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;resize:vertical}
+  .sgbox textarea:focus{outline:2px solid var(--terra);outline-offset:-1px;border-color:transparent}
+  .chk{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:8px;cursor:pointer}
+  .chk input{width:20px;height:20px;accent-color:var(--terra);margin:0}
+  .sgrow{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .sgsend{border:0;background:var(--terra);color:#fff;border-radius:99px;padding:10px 20px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;min-height:42px}
+  .sgsend:disabled{opacity:.5}
+  .sgmsg{font-size:13px;color:var(--muted)}
+  .sgmsg.err{color:#B3261E}
+  .sgmsg.ok{color:#3F7D4E}
+  .sg{border-top:1px solid var(--soft);padding:12px 0 2px;margin-top:12px}
+  .sg .sh{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+  .sg .st{font-size:11px;font-weight:700;border-radius:99px;padding:1px 8px;background:var(--soft);color:var(--muted)}
+  .sg .st.done{background:var(--terra);color:#fff}
+  .sg .sb{font-size:14px;line-height:1.6;margin-top:4px;white-space:pre-wrap;word-break:break-word}
+  .sg .sr{margin-top:8px;padding:8px 10px;border-left:3px solid var(--terra);background:#FBF7F1;border-radius:0 8px 8px 0;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+  .sg .sr b{display:block;font-size:12px;color:var(--terra);margin-bottom:2px}
   .wbox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 12px 8px;position:relative}
   .wsum{font-size:13px;color:var(--muted);margin:2px 4px 6px}
   .wsum b{color:var(--brown)}
@@ -279,6 +318,14 @@ var SOWEL_UPD = (function () {
   <section class="pushcard hidden" id="pushCard"><div class="pi">🔔</div><div class="pt" id="pushText"></div><button type="button" id="pushBtn"></button></section>
   <div class="pushmsg hidden" id="pushMsg"></div>
 
+  <nav class="mtabs hidden" id="mTabs" role="tablist"><div class="in">
+    <button class="mtab on" type="button" data-p="log" role="tab">수업일지</button>
+    <button class="mtab" type="button" data-p="talk" role="tab" id="talkTab">공지 · 건의</button>
+  </div></nav>
+
+  <div id="paneLog">
+  <button class="nbanner hidden" type="button" id="nBanner"><span>📢</span><span class="t" id="nBannerText"></span><span class="go">보기 →</span></button>
+
   <section class="next hidden" id="next">
     <div class="dday" id="dday"><b>D-1</b><span>다음 수업</span></div>
     <div class="info">
@@ -293,6 +340,23 @@ var SOWEL_UPD = (function () {
 
   <div class="state" id="state"><span class="spin"></span>수업일지를 불러오는 중이에요…</div>
   <div id="list"></div>
+  </div>
+
+  <div id="paneTalk" class="hidden">
+  <div id="ntWrap"><div class="sec">📢 공지사항</div><section class="ntbox" id="ntBox"></section></div>
+
+  <div id="sgWrap">
+    <div class="sec">💬 건의하기</div>
+    <section class="sgbox">
+      <p>센터에 바라는 점, 불편한 점을 편하게 남겨 주세요.</p>
+      <textarea id="sgBody" maxlength="1500" placeholder="예: 저녁 9시 수업도 있었으면 좋겠어요"></textarea>
+      <label class="chk"><input type="checkbox" id="sgAnon"> 익명으로 보내기</label>
+      <p id="sgAnonNote" class="hidden" style="margin-top:4px;font-size:12px">이름이 센터에 남지 않아요. 답변은 지금 이 폰에서만 볼 수 있어요.</p>
+      <div class="sgrow"><button class="sgsend" type="button" id="sgSend">보내기</button><span class="sgmsg" id="sgMsg"></span></div>
+      <div id="sgMine"></div>
+    </section>
+  </div>
+  </div>
 
   <div class="foot">SOWEL WELLNESS</div>
 </main>
@@ -711,12 +775,17 @@ var SOWEL_UPD = (function () {
       }
     });
   }
+  // 익명 건의 티켓: 이 폰이 보낸 익명 건의의 답변을 보려고 기억해 둠
+  var TKEY = 'sj_m_sgt_' + code;
+  function tickets() { try { var a = JSON.parse(localStorage.getItem(TKEY) || '[]'); return Array.isArray(a) ? a.filter(function (x) { return /^G[a-f0-9]{16}$/.test(x); }) : []; } catch (e) { return []; } }
+  function addTicket(id) { var a = tickets(); if (a.indexOf(id) < 0) a.unshift(id); try { localStorage.setItem(TKEY, JSON.stringify(a.slice(0, 30))); } catch (e) {} }
   function viaGet() {
-    return fetch(API + '?action=member&c=' + encodeURIComponent(code)).then(readJson);
+    var t = tickets();
+    return fetch(API + '?action=member&c=' + encodeURIComponent(code) + (t.length ? '&t=' + t.join(',') : '')).then(readJson);
   }
   function viaPost() {
     return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify({ action: 'member', c: code }) }).then(readJson);
+                        body: JSON.stringify({ action: 'member', c: code, tickets: tickets() }) }).then(readJson);
   }
   function load() {
     var why = [];
@@ -750,6 +819,122 @@ var SOWEL_UPD = (function () {
       showWhy(e && e.why ? e.why : [String(e && e.message || e)]);
     });
 
+  // ───── 공지 ─────
+  function kday(ms) {
+    var d = new Date(ms); if (!ms) return '';
+    return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + DAYS[d.getDay()] + ')';
+  }
+  var NSEEN = 'sj_m_nseen_' + code, RSEEN = 'sj_m_rseen_' + code;
+  function lsGet(k) { try { return Number(localStorage.getItem(k) || 0); } catch (e) { return 0; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+  var T = { notices: [], mine: [] };
+  function noticeSeen() { return lsGet(NSEEN) || Date.now() - 7 * 86400e3; }   // 처음 연 폰: 최근 7일 공지만 새 글
+  function replySeen() { return lsGet(RSEEN); }
+  function unread() {
+    var ns = noticeSeen(), rs = replySeen();
+    var n = T.notices.filter(function (x) { return x.at > ns; });
+    var r = T.mine.filter(function (x) { return x.reply && x.replyAt > rs; });
+    return { notices: n, replies: r, count: n.length + r.length };
+  }
+  /** 탭 숫자 + [수업일지] 위 새 소식 띠 */
+  function renderBadges() {
+    var u = unread(), tab = $('talkTab');
+    tab.textContent = '공지 · 건의';
+    if (u.count && pane !== 'talk') tab.appendChild(el('span', 'bdg', String(u.count)));
+    var bn = $('nBanner');
+    if (!u.count || pane === 'talk') { bn.classList.add('hidden'); return; }
+    var t = $('nBannerText'); t.innerHTML = '';
+    if (u.notices.length) { t.appendChild(el('b', '', '새 공지')); t.appendChild(document.createTextNode(u.notices[0].title + (u.notices.length > 1 ? ' 외 ' + (u.notices.length - 1) + '개' : ''))); }
+    else { t.appendChild(el('b', '', '답변 도착')); t.appendChild(document.createTextNode('건의에 센터 답변이 왔어요')); }
+    bn.classList.remove('hidden');
+  }
+  var pane = 'log', replySeenShown = 0;
+  function showPane(p) {
+    pane = p;
+    $('paneLog').classList.toggle('hidden', p !== 'log');
+    $('paneTalk').classList.toggle('hidden', p !== 'talk');
+    Array.prototype.forEach.call(document.querySelectorAll('.mtab'), function (b) { b.classList.toggle('on', b.dataset.p === p); });
+    try { history.replaceState(null, '', location.pathname + location.search + (p === 'talk' ? '#talk' : '')); } catch (e) {}
+    if (p === 'talk') {
+      renderNotices(T.notices);   // NEW 표시는 보기 전 기준으로 그린 뒤 읽음 처리
+      var top = Math.max.apply(null, [Date.now() - 7 * 86400e3].concat(T.notices.map(function (n) { return n.at; })));
+      lsSet(NSEEN, Math.max(top, lsGet(NSEEN)));
+      var rtop = Math.max.apply(null, [replySeen()].concat(T.mine.map(function (x) { return x.replyAt || 0; })));
+      lsSet(RSEEN, rtop);
+    }
+    // 아래로 내려가 있었으면 탭 바로 아래(새 화면 처음)로
+    var pe = $(p === 'talk' ? 'paneTalk' : 'paneLog'), want = pe.getBoundingClientRect().top + window.scrollY - $('mTabs').offsetHeight;
+    if (window.scrollY > want) window.scrollTo(0, Math.max(0, want));
+    renderBadges();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.mtab'), function (b) { b.onclick = function () { showPane(b.dataset.p); }; });
+  $('nBanner').onclick = function () { showPane('talk'); };
+
+  function renderNotices(list) {
+    list = list || [];
+    var box = $('ntBox'); box.innerHTML = '';
+    if (!list.length) { box.appendChild(el('div', 'ntempty', '아직 공지가 없어요.')); return; }
+    var seen = noticeSeen();
+    var SHOW = 3;
+    list.forEach(function (n, i) {
+      var c = el('div', 'ntc' + (i >= SHOW ? ' hidden xtra' : ''));
+      var t = el('div', 'nt');
+      if (n.pin) t.appendChild(el('span', '', '📌'));
+      t.appendChild(el('span', '', n.title));
+      if (n.at > seen) t.appendChild(el('span', 'new', 'NEW'));
+      c.appendChild(t);
+      c.appendChild(el('div', 'nd', kday(n.at)));
+      if (n.body) {
+        var b = el('div', 'nb', n.body); c.appendChild(b);
+        if (n.body.length > 110 || n.body.split('\n').length > 3) {
+          b.classList.add('clip');
+          var m = el('button', 'lnk', '더 보기'); m.type = 'button';
+          m.onclick = function () { b.classList.toggle('clip'); m.textContent = b.classList.contains('clip') ? '더 보기' : '접기'; };
+          c.appendChild(m);
+        }
+      }
+      box.appendChild(c);
+    });
+    if (list.length > SHOW) {
+      var more = el('button', 'lnk ntmore', '지난 공지 ' + (list.length - SHOW) + '개 더 보기'); more.type = 'button';
+      more.onclick = function () { Array.prototype.forEach.call(box.querySelectorAll('.xtra'), function (x) { x.classList.remove('hidden'); }); more.remove(); };
+      box.appendChild(more);
+    }
+  }
+  // ───── 건의 ─────
+  function renderSugg(mine) {
+    var rs = pane === 'talk' ? replySeenShown : replySeen();
+    var box = $('sgMine'); box.innerHTML = '';
+    (mine || []).forEach(function (s) {
+      var c = el('div', 'sg'), h = el('div', 'sh');
+      h.appendChild(el('span', 'st' + (s.status === '답변 완료' ? ' done' : ''), s.status === '새 건의' ? '보냄' : s.status));
+      if (s.anon) h.appendChild(el('span', 'st', '익명'));
+      h.appendChild(el('span', '', kday(s.at)));
+      if (s.reply && s.replyAt > rs) h.appendChild(el('span', 'new', 'NEW'));
+      c.appendChild(h); c.appendChild(el('div', 'sb', s.body));
+      if (s.reply) { var r = el('div', 'sr'); r.appendChild(el('b', '', '센터 답변')); r.appendChild(document.createTextNode(s.reply)); c.appendChild(r); }
+      box.appendChild(c);
+    });
+  }
+  function sgMsg(t, k) { var m = $('sgMsg'); m.className = 'sgmsg' + (k ? ' ' + k : ''); m.textContent = t || ''; }
+  $('sgAnon').onchange = function () { $('sgAnonNote').classList.toggle('hidden', !$('sgAnon').checked); };
+  $('sgSend').onclick = function () {
+    var body = $('sgBody').value.trim();
+    if (body.length < 2) { sgMsg('내용을 적어 주세요.', 'err'); $('sgBody').focus(); return; }
+    var btn = $('sgSend'), anon = $('sgAnon').checked;
+    btn.disabled = true; sgMsg('보내는 중…');
+    fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                 body: JSON.stringify({ action: 'suggMember', c: code, body: body, anon: anon, tickets: tickets() }) })
+      .then(readJson).then(function (j) {
+        if (!j.ok) throw new Error(j.error || '보내지 못했어요.');
+        if (anon) addTicket(j.id);
+        $('sgBody').value = ''; $('sgAnon').checked = false; $('sgAnonNote').classList.add('hidden');
+        sgMsg((anon ? '익명으로 ' : '') + '보냈어요. 고마워요 🙏', 'ok');
+        T.mine = j.mine || []; renderSugg(T.mine);
+      }).catch(function (e) { sgMsg(e && e.message || '보내지 못했어요. 잠시 후 다시 해 주세요.', 'err'); })
+      .then(function () { btn.disabled = false; });
+  };
+
   function render(j) {
       if (!j.ok) return fail(j.error || '수업일지를 불러오지 못했어요.');
       document.title = j.name + '님의 수업일지 · SOWEL';
@@ -765,6 +950,11 @@ var SOWEL_UPD = (function () {
       renderValid(j.valid);
       renderPush(j.push);
       renderHw(j.hw);
+      T.notices = j.notices || []; T.mine = j.mine || [];
+      replySeenShown = replySeen();
+      renderSugg(T.mine);
+      $('mTabs').classList.remove('hidden');
+      showPane(location.hash === '#talk' ? 'talk' : 'log');
 
       if (!logs.length) return fail('아직 기록된 수업일지가 없어요.\n첫 수업 후에 이곳에 쌓여요 🌿');
       $('state').classList.add('hidden');
