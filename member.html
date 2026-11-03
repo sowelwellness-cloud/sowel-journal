@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.15.1">
+<meta name="sowel-version" content="0.16.0">
 <meta name="robots" content="noindex,nofollow">
 <title>나의 수업일지 · SOWEL</title>
 <link rel="manifest" href="manifest-member.webmanifest">
@@ -258,6 +258,18 @@ var SOWEL_UPD = (function () {
   .nbanner .t b{color:var(--terra);margin-right:4px}
   .nbanner .go{flex:0 0 auto;color:var(--terra);font-size:13px;font-weight:700}
   .ntempty{padding:16px 0;font-size:14px;color:var(--muted);text-align:center}
+  .attbox{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:6px 16px 12px}
+  .attrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--soft);font-size:15px}
+  .attrow .md{flex:0 0 28px;font-size:22px;text-align:center;line-height:1}
+  .attrow .nm{flex:1}
+  .attrow .ct{font-weight:700}
+  .attrow.me{background:#FDF1E8;margin:0 -16px;padding:9px 16px;border-bottom-color:transparent}
+  .attrow.me .nm{font-weight:700;color:var(--terra)}
+  .attme{margin-top:12px;font-size:14px;line-height:1.6}
+  .attme b{color:var(--terra)}
+  .attlast{margin-top:8px;font-size:13px;color:var(--muted)}
+  .attlast.me{color:var(--brown);font-weight:700}
+  .attempty{padding:12px 0 2px;font-size:14px;color:var(--muted)}
   .ntbox{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:4px 16px}
   .ntc{border-top:1px solid var(--soft);padding:12px 0}
   .ntc:first-child{border-top:0}
@@ -337,6 +349,8 @@ var SOWEL_UPD = (function () {
   </section>
 
   <div id="hwWrap" class="hidden"><div class="sec">이번 숙제</div><section class="hw" id="hwBox"></section></div>
+
+  <div id="attWrap" class="hidden"><div class="sec" id="attTitle">🏆 이달의 출석왕</div><section class="attbox" id="attBox"></section></div>
 
   <div class="state" id="state"><span class="spin"></span>수업일지를 불러오는 중이에요…</div>
   <div id="list"></div>
@@ -819,6 +833,43 @@ var SOWEL_UPD = (function () {
       showWhy(e && e.why ? e.why : [String(e && e.message || e)]);
     });
 
+  // ───── 이달의 출석왕 ─────
+  function renderAttend(a) {
+    var wrap = $('attWrap'), box = $('attBox');
+    if (!a || (!a.people && !a.last)) { wrap.classList.add('hidden'); return; }
+    box.innerHTML = '';
+    $('attTitle').textContent = '🏆 ' + a.label + ' 출석왕';
+    var medal = ['🥇', '🥈', '🥉'];
+    if (!a.top.length) box.appendChild(el('div', 'attempty', '이번 달 첫 출석의 주인공이 되어 보세요!'));
+    a.top.forEach(function (x) {
+      var r = el('div', 'attrow' + (x.me ? ' me' : ''));
+      r.appendChild(el('span', 'md', medal[x.rank - 1] || ''));
+      r.appendChild(el('span', 'nm', x.name));
+      r.appendChild(el('span', 'ct', x.n + '회'));
+      box.appendChild(r);
+    });
+    if (a.more) box.appendChild(el('div', 'attlast', '공동 순위 ' + a.more + '명 더'));
+    var me = el('div', 'attme');
+    if (a.me.rank && a.me.rank <= 3) {
+      me.appendChild(document.createTextNode('나는 지금 '));
+      me.appendChild(el('b', '', a.me.rank + '위'));
+      me.appendChild(document.createTextNode(' · ' + a.me.n + '회 출석했어요 👏'));
+    } else if (a.me.rank) {
+      var min = Math.min.apply(null, a.top.map(function (x) { return x.n; }));
+      me.appendChild(document.createTextNode('나는 ' + a.me.rank + '위 · ' + a.me.n + '회 출석 — '));
+      me.appendChild(el('b', '', 'TOP 3까지 ' + Math.max(1, min - a.me.n) + '회!'));
+    } else {
+      me.appendChild(document.createTextNode('이번 달은 아직 출석 기록이 없어요. 첫 수업을 기다릴게요 🌿'));
+    }
+    box.appendChild(me);
+    if (a.last) {
+      box.appendChild(el('div', 'attlast' + (a.last.me ? ' me' : ''), a.last.me
+        ? '🎉 ' + a.last.label + ' 출석왕은 바로 나예요! (' + a.last.n + '회)'
+        : '👑 ' + a.last.label + ' 출석왕 ' + a.last.names.join(', ') + ' (' + a.last.n + '회)'));
+    }
+    wrap.classList.remove('hidden');
+  }
+
   // ───── 공지 ─────
   function kday(ms) {
     var d = new Date(ms); if (!ms) return '';
@@ -950,6 +1001,7 @@ var SOWEL_UPD = (function () {
       renderValid(j.valid);
       renderPush(j.push);
       renderHw(j.hw);
+      renderAttend(j.attend);
       T.notices = j.notices || []; T.mine = j.mine || [];
       replySeenShown = replySeen();
       renderSugg(T.mine);

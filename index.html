@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.19.0">
+<meta name="sowel-version" content="0.20.0">
 <title>소웰 수업일지</title>
 <link rel="manifest" href="manifest-teacher.webmanifest">
 <link rel="apple-touch-icon" href="icon-teacher-180.png">
@@ -237,6 +237,14 @@ window.SOWEL_PUSH = (function () {
   .sg .sr b{display:block;font-size:12px;color:var(--terra);margin-bottom:2px}
   .chk{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--brown);margin:10px 0 0;cursor:pointer}
   .chk input{width:20px;height:20px;accent-color:var(--terra);margin:0;flex:0 0 auto}
+  .att{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #EFE6D8;font-size:14px}
+  .att:last-child{border-bottom:0}
+  .att .rk{flex:0 0 34px;text-align:center;font-weight:700;color:var(--muted)}
+  .att .rk.m{font-size:20px}
+  .att .nm{flex:1;min-width:0}
+  .att .nm small{color:var(--muted);margin-left:6px;font-size:12px}
+  .att .ct{font-weight:700}
+  .att.mine .nm{font-weight:700}
   .tab .dot{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:var(--terra);color:#fff;font-size:11px;line-height:18px;margin-left:4px;padding:0 5px;vertical-align:1px}
 
   /* ───── 일정 ───── */
@@ -644,6 +652,14 @@ window.SOWEL_PUSH = (function () {
         <div id="stBody"></div>
         <p class="note">합계 = 완료 + 노쇼 (급여 계산용). 완료에는 일정 없이 쓴 일지도 들어가요. 취소는 합계에 안 들어가요.</p>
         <div class="msg" id="stMsg"></div>
+      </section>
+
+      <section class="card hidden" id="attSection">
+        <h2>🏆 이달의 출석왕</h2>
+        <div class="monthnav"><button class="btn ghost small" id="atPrev" aria-label="지난달">‹</button><b id="atMonth"></b><button class="btn ghost small" id="atNext" aria-label="다음 달">›</button></div>
+        <div id="atBody"></div>
+        <p class="note">완료한 수업 수로 순위를 매겨요 (일정 없이 쓴 일지 포함, 노쇼·취소 제외). 같은 횟수면 공동 순위.<span class="adminOnly"> 매월 1일 오전 9시에 지난달 TOP 3를 공지·알림으로 자동 발표해요.</span><span class="teacherOnly"> 다른 선생님 회원은 이름 가운데를 가려요.</span></p>
+        <div class="msg" id="atMsg"></div>
       </section>
 
       <section class="card" id="mySection">
@@ -1335,7 +1351,7 @@ var SJ = (function () {
     if (name === 'sched') loadSchedule();
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) { b.classList.toggle('on', b.dataset.tab === name); });
     if (name === 'logs' && !logsLoaded) loadLogs();
-    if (name === 'admin') { if (isAdmin()) loadTeachers(); else renderMemberList(); loadSessions(); loadStats(); }
+    if (name === 'admin') { if (isAdmin()) loadTeachers(); else renderMemberList(); loadSessions(); loadStats(); loadAttend(); }
     if (name === 'talk') { renderTalk(); loadTalk(); }
   }
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
@@ -2445,6 +2461,35 @@ var SJ = (function () {
   }
   $('stPrev').onclick = function () { stMonth = shiftMonth(stMonth, -1); loadStats(); };
   $('stNext').onclick = function () { stMonth = shiftMonth(stMonth, 1); loadStats(); };
+  // 이달의 출석왕
+  var atMonth = todayStr().slice(0, 7);
+  async function loadAttend() {
+    $('atMonth').textContent = atMonth.slice(0, 4) + '년 ' + (+atMonth.slice(5)) + '월';
+    Array.prototype.forEach.call(document.querySelectorAll('#attSection .teacherOnly'), function (x) { x.classList.toggle('hidden', isAdmin()); });
+    msg('atMsg', '불러오는 중…');
+    var want = atMonth;
+    try {
+      var j = await callApi({ action: 'attendRank', month: want });
+      if (want !== atMonth) return;
+      $('attSection').classList.toggle('hidden', j.on === false);
+      msg('atMsg', '');
+      var box = $('atBody'); box.innerHTML = '';
+      var list = j.list || [];
+      if (!list.length) { box.appendChild(el('p', 'note', '이 달에는 완료한 수업이 없어요.')); return; }
+      var medal = ['🥇', '🥈', '🥉'];
+      list.forEach(function (x) {
+        var row = el('div', 'att' + (x.mine ? ' mine' : ''));
+        row.appendChild(el('span', 'rk' + (x.rank <= 3 ? ' m' : ''), x.rank <= 3 ? medal[x.rank - 1] : x.rank + '위'));
+        var nm = el('span', 'nm', x.name);
+        if (x.trainer && isAdmin()) nm.appendChild(el('small', '', x.trainer));
+        row.appendChild(nm);
+        row.appendChild(el('span', 'ct', x.n + '회'));
+        box.appendChild(row);
+      });
+    } catch (e) { msg('atMsg', e.message, 'err'); }
+  }
+  $('atPrev').onclick = function () { atMonth = shiftMonth(atMonth, -1); loadAttend(); };
+  $('atNext').onclick = function () { atMonth = shiftMonth(atMonth, 1); loadAttend(); };
 
   // ═════════ 아이디·비밀번호 공통 ═════════
   var ID_RE = /^[a-z][a-z0-9._-]{3,19}$/;
