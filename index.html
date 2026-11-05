@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.22.0">
+<meta name="sowel-version" content="0.23.0">
 <title>소웰 수업일지</title>
 <link rel="manifest" href="manifest-teacher.webmanifest">
 <link rel="apple-touch-icon" href="icon-teacher-180.png">
@@ -255,6 +255,20 @@ window.SOWEL_PUSH = (function () {
   .att .nm small{color:var(--muted);margin-left:6px;font-size:12px}
   .att .ct{font-weight:700}
   .att.mine .nm{font-weight:700}
+  .cthread{margin:4px 16px 0;padding:10px 12px;border-radius:12px;background:#FBF7F1;border:1px solid #EFE6D8}
+  .cthread .ch{font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .cthread .ch .chip{margin-left:0}
+  .cthread .bubbles{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .cthread .bub{max-width:88%;padding:7px 11px;border-radius:12px;font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+  .cthread .bub.m{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+  .cthread .bub.t{align-self:flex-end;background:#FBE3D3;border-bottom-right-radius:4px}
+  .cthread .bub small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+  .cthread .bub b{display:block;font-size:11px;color:var(--terra)}
+  .cthread .bub .link{font-size:11px;margin-left:6px}
+  .cthread .cin{display:flex;gap:6px;margin-top:8px;align-items:flex-end}
+  .cthread .cin textarea{flex:1;min-height:40px;max-height:120px;resize:none;font-size:14px;padding:8px 10px}
+  .cthread .cin .btn{flex:0 0 auto;height:40px}
+  .chip.newc{background:var(--terra);color:#fff;font-weight:700}
   .tab .dot{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:var(--terra);color:#fff;font-size:11px;line-height:18px;margin-left:4px;padding:0 5px;vertical-align:1px}
 
   /* ───── 일정 ───── */
@@ -558,6 +572,7 @@ window.SOWEL_PUSH = (function () {
           <div class="hidden" id="trainerFilterBox"><label for="trainerFilter">선생님</label><select id="trainerFilter"><option value="">전체</option></select></div>
           <div><label for="memberFilter">회원</label><select id="memberFilter"><option value="">전체</option></select></div>
         </div>
+        <label class="chk"><input type="checkbox" id="needFilter"> 💬 답이 필요한 댓글만 보기 <span class="chip newc hidden" id="needCount">0</span></label>
         <div class="msg" id="logsMsg"></div>
       </section>
       <div id="logList"></div>
@@ -1078,7 +1093,7 @@ var SJ = (function () {
     var prev = S.me ? S.me.name + '|' + S.me.role : '';
     var inApp = !$('appView').classList.contains('hidden');
     S.me = j.me; S.center = j.center; S.closing = j.closing; S.apiKey = j.apiKey; S.model = j.model; S.pending = j.pending || 0;
-    S.push = j.push || null; S.notices = j.notices || []; S.newSugg = j.newSugg || 0;
+    S.push = j.push || null; S.notices = j.notices || []; S.newSugg = j.newSugg || 0; S.newCmt = j.newCmt || 0;
     if (j.needAccount) { clearSnap(); setMembers(j.members || []); showAccountSetup(); return; }
     setMembers(j.members || []);
     saveSnap();
@@ -1089,7 +1104,7 @@ var SJ = (function () {
   function refreshApp() {
     $('whoName').textContent = S.me.name + (isAdmin() ? ' · 관리자' : ' 선생님');
     $('myId').textContent = S.me.id || '-';
-    setAdminTabLabel(); setTalkDot();
+    setAdminTabLabel(); setTalkDot(); setLogsLabel();
     $('pendingSection').classList.toggle('hidden', !isAdmin() || !S.pending);
     if (currentTab === 'talk') renderTalk();
     if (!apiKey()) setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err');
@@ -1143,7 +1158,7 @@ var SJ = (function () {
     if (pt && store.get('token')) { try { callApi({ action: 'pushSub', off: true, pt: pt }).catch(function () {}); } catch (e) {} }
     store.del('pushtok');
     store.del('token'); store.del('pin'); clearSnap();
-    S.me = null; currentTab = 'sched'; SV.cache = {}; $('teacherList').innerHTML = ''; S.sess = {}; S.valid = {}; S.info = {}; openReg = ''; S.notices = []; S.mine = []; S.allNotices = null; S.sugg = []; S.newSugg = 0;
+    S.me = null; currentTab = 'sched'; SV.cache = {}; $('teacherList').innerHTML = ''; S.sess = {}; S.valid = {}; S.info = {}; openReg = ''; S.notices = []; S.mine = []; S.allNotices = null; S.sugg = []; S.newSugg = 0; S.newCmt = 0;
     $('pinIn').value = ''; $('pwIn').value = '';
     showLogin();
     msg('loginMsg', reason || '로그아웃했어요.', reason ? 'err' : 'ok');
@@ -1164,7 +1179,7 @@ var SJ = (function () {
     $('mTrainerNote').classList.toggle('hidden', isAdmin());
     if (!isAdmin()) { S.teachers = [{ name: S.me.name, active: true }]; fillTrainerSelect($('mTrainer'), S.me.name); $('mTrainer').disabled = true; }
     else $('mTrainer').disabled = false;
-    $('logsTabBtn').textContent = isAdmin() ? '일지' : '내 일지';
+    setLogsLabel();
     $('trainerFilterBox').classList.toggle('hidden', !isAdmin());
     $('sKey').value = store.get('key') || '';
     $('sModel').value = store.get('model') || '';
@@ -1370,6 +1385,12 @@ var SJ = (function () {
     } catch (e) { m.className = 'msg err'; m.textContent = e.message; btn.disabled = false; }
   }
 
+  function setLogsLabel() {
+    var b = $('logsTabBtn'); if (!b) return;
+    b.textContent = isAdmin() ? '일지' : '내 일지';
+    if (S.newCmt) b.appendChild(el('span', 'dot', String(S.newCmt)));
+    $('needCount').textContent = S.newCmt || 0; $('needCount').classList.toggle('hidden', !S.newCmt);
+  }
   function setAdminTabLabel() {
     var b = $('adminTabBtn');
     b.textContent = isAdmin() ? '관리' : '회원';
@@ -1857,7 +1878,7 @@ var SJ = (function () {
     if (!more) logLimit = 30;
     msg('logsMsg', '불러오는 중…');
     try {
-      var j = await callApi({ action: 'logs', limit: logLimit,
+      var j = await callApi({ action: 'logs', limit: logLimit, need: $('needFilter').checked ? 1 : 0,
                               trainer: isAdmin() ? $('trainerFilter').value : '', code: $('memberFilter').value });
       logsLoaded = true;
       if (isAdmin()) {
@@ -1866,6 +1887,7 @@ var SJ = (function () {
         (j.trainers || []).forEach(function (n) { var o = el('option', '', n); o.value = n; sel.appendChild(o); });
         sel.value = keep;
       }
+      if (j.newCmt !== undefined) { S.newCmt = j.newCmt; setLogsLabel(); }
       renderLogs(j.logs || []);
       var empty = isAdmin() ? '저장된 일지가 없어요.'
         : (S.members.length ? '내 담당 회원의 일지가 아직 없어요.' : '아직 담당 회원이 없어요. 대표에게 담당 지정을 요청해 주세요. 지정되면 그 회원의 지난 일지도 여기에 보여요.');
@@ -1876,6 +1898,7 @@ var SJ = (function () {
     }
   }
   $('trainerFilter').onchange = function () { loadLogs(); };
+  $('needFilter').onchange = function () { loadLogs(); };
   $('memberFilter').onchange = function () { loadLogs(); };
   $('moreBtn').onclick = function () { logLimit += 30; loadLogs(true); };
 
@@ -1896,6 +1919,11 @@ var SJ = (function () {
     if (isAdmin()) top.appendChild(el('span', 'chip', log.trainer || '작성자 없음'));
     else if (log.trainer !== S.me.name) top.appendChild(el('span', 'chip soft', '작성 · ' + (log.trainer || '?')));
     if (log.editedAt) top.appendChild(el('span', 'chip soft', '수정됨'));
+    if (log.cm) {
+      if (log.cm.need) top.appendChild(el('span', 'chip newc', '새 댓글'));
+      var ctxt = (log.cm.r ? log.cm.r.split(' ')[0] : '') + (log.cm.n ? ' 💬' + log.cm.n : '');
+      if (ctxt.trim()) top.appendChild(el('span', 'chip soft', ctxt.trim()));
+    }
     sum.appendChild(top);
     var body = String(log.text || '').split('\n').filter(function (l) { return /^- /.test(l); }).map(function (l) { return l.slice(2).split(/\s\d/)[0]; });
     sum.appendChild(el('div', 'preview', body.length ? body.slice(0, 4).join(' · ') : String(log.text || '').split('\n').slice(1).join(' ').trim().slice(0, 60)));
@@ -1903,6 +1931,10 @@ var SJ = (function () {
 
     var view = el('div', 'logbody', log.text);
     card.appendChild(view);
+    var thBox = el('div', 'cthread');
+    card.appendChild(thBox);
+    drawThread(thBox, log, null);
+    card.addEventListener('toggle', function () { if (card.open && !thBox._loaded) loadThread(thBox, log); });
 
     var actions = el('div', 'row');
     var bLink = el('button', 'btn ghost', '회원 보기');
@@ -1919,6 +1951,53 @@ var SJ = (function () {
     var m = el('div', 'msg'); card.appendChild(m);
     card._msg = m;
     return card;
+  }
+
+  // ───── 일지 댓글 (회원 ↔ 담당 선생님) ─────
+  function atText(ms) { var d = new Date(ms); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  async function loadThread(box, log) {
+    box._loaded = true;
+    try {
+      var j = await callApi({ action: 'cmts', log: log.id });
+      var wasNeed = log.cm && log.cm.need;
+      drawThread(box, log, j.thread);
+      if (wasNeed) { log.cm.need = false; S.newCmt = Math.max(0, (S.newCmt || 0) - 1); setLogsLabel(); var c = box.closest('details'); var nc = c && c.querySelector('.chip.newc'); if (nc) nc.remove(); }
+    } catch (e) { box._loaded = false; drawThread(box, log, null, e.message); }
+  }
+  function drawThread(box, log, th, err) {
+    box.innerHTML = '';
+    var h = el('div', 'ch', '💬 회원과 대화');
+    if (th && th.react) h.appendChild(el('span', 'chip', '회원 반응 · ' + th.react));
+    else if (!th && log.cm && log.cm.r) h.appendChild(el('span', 'chip', '회원 반응 · ' + log.cm.r));
+    box.appendChild(h);
+    if (!th) { box.appendChild(el('div', 'note', err || (log.cm ? '불러오는 중…' : '아직 회원 댓글이 없어요. 먼저 한마디 남길 수도 있어요.'))); }
+    var bl = el('div', 'bubbles');
+    (th ? th.items : []).forEach(function (x) {
+      var b = el('div', 'bub ' + (x.by === '회원' ? 'm' : 't'));
+      b.appendChild(el('b', '', x.by === '회원' ? x.name : x.name + ' 선생님'));
+      b.appendChild(document.createTextNode(x.text));
+      var sm = el('small', '', atText(x.at));
+      if (x.mine || (isAdmin() && x.by === '선생님')) { var d = el('button', 'link', '지우기'); d.onclick = function () { reply(box, log, { del: x.id }, d); }; sm.appendChild(d); }
+      b.appendChild(sm); bl.appendChild(b);
+    });
+    if (th && !th.items.length) box.appendChild(el('div', 'note', '아직 댓글이 없어요. 먼저 한마디 남길 수도 있어요.'));
+    box.appendChild(bl);
+    var row = el('div', 'cin'), ta = el('textarea'); ta.maxLength = 500; ta.rows = 1; ta.placeholder = '답글 (회원에게 알림이 가요)';
+    ta.oninput = function () { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; };
+    var sb = el('button', 'btn terra small', '보내기');
+    sb.onclick = function () { var t = ta.value.trim(); if (!t) { ta.focus(); return; } reply(box, log, { text: t }, sb); };
+    row.appendChild(ta); row.appendChild(sb); box.appendChild(row);
+    var m = el('div', 'msg'); box.appendChild(m); box._msg = m;
+  }
+  async function reply(box, log, extra, btn) {
+    btn.disabled = true;
+    try {
+      var body = { action: 'cmtReply', log: log.id }; Object.keys(extra).forEach(function (k) { body[k] = extra[k]; });
+      var j = await callApi(body);
+      log.cm = { n: j.thread.items.length, r: j.thread.react, need: false };
+      drawThread(box, log, j.thread);
+      if (extra.text) { box._msg.className = 'msg ok'; box._msg.textContent = '보냈어요. 회원에게 알림이 가요.'; }
+    } catch (e) { btn.disabled = false; if (box._msg) { box._msg.className = 'msg err'; box._msg.textContent = e.message; } }
   }
 
   // ───── 저장한 일지의 운동 부위 고치기 ─────
