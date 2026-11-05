@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.21.0">
+<meta name="sowel-version" content="0.22.0">
 <title>소웰 수업일지</title>
 <link rel="manifest" href="manifest-teacher.webmanifest">
 <link rel="apple-touch-icon" href="icon-teacher-180.png">
@@ -287,6 +287,12 @@ window.SOWEL_PUSH = (function () {
   .ev .n{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ev.private{background:repeating-linear-gradient(135deg,#E9E2D8,#E9E2D8 6px,#F3EEE7 6px,#F3EEE7 12px) !important;color:var(--muted)}
   .ev.st-완료{opacity:.55}
+  .ev.pending{opacity:.6;outline:2px dashed rgba(255,255,255,.9);outline-offset:-3px}
+  #netbar{position:fixed;left:0;top:0;height:3px;width:100%;z-index:999;pointer-events:none;opacity:0;transition:opacity .15s;
+          background:linear-gradient(90deg,transparent,var(--terra),transparent);background-size:40% 100%;background-repeat:no-repeat;animation:netmove 1s linear infinite}
+  body.net #netbar{opacity:1}
+  @keyframes netmove{from{background-position:-40% 0}to{background-position:140% 0}}
+  .btn:active,.tab:active,.mtab:active{transform:scale(.97)}
   .ev.st-노쇼{outline:2px solid var(--err);outline-offset:-2px}
   .ev.st-취소{opacity:.35;text-decoration:line-through}
   .ev .badge{font-size:10px;font-weight:700;margin-left:2px}
@@ -777,6 +783,7 @@ window.SOWEL_PUSH = (function () {
   </div>
 </div>
 
+<div id="netbar"></div>
 <div class="ver" id="verLabel"></div>
 <div class="updbar hidden" id="updBar"><span>새 버전이 있어요. 저장을 마친 뒤 새로고침해 주세요.</span><button id="updBtn">새로고침</button></div>
 <script>
@@ -1026,7 +1033,13 @@ var SJ = (function () {
   }
 
   // ═════════ 시트 API ═════════
+  var netN = 0;
+  function netOn(on) { netN = Math.max(0, netN + (on ? 1 : -1)); document.body.classList.toggle('net', netN > 0); }
   async function callApi(body, opt) {
+    netOn(true);
+    try { return await callApi0(body, opt); } finally { netOn(false); }
+  }
+  async function callApi0(body, opt) {
     var url = apiUrl();
     if (!url) throw new Error('시트 연결 주소가 없어요. config.js를 확인해 주세요.');
     if (!(opt && opt.noPin)) { var tk = store.get('token'); if (tk) body.token = tk; else body.pin = store.get('pin') || ''; }
@@ -1058,7 +1071,7 @@ var SJ = (function () {
     } catch (e) {}
     return null;
   }
-  function clearSnap() { try { localStorage.removeItem('sj_snap'); localStorage.removeItem('sj_sched'); } catch (e) {} }
+  function clearSnap() { try { localStorage.removeItem('sj_snap'); localStorage.removeItem('sj_sched'); Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sj_admin_') === 0) localStorage.removeItem(k); }); } catch (e) {} }
 
   function applyLogin(j, bg) {
     if (j.token) { store.set('token', j.token); store.del('pin'); }
@@ -1371,7 +1384,7 @@ var SJ = (function () {
     if (name === 'sched') loadSchedule();
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) { b.classList.toggle('on', b.dataset.tab === name); });
     if (name === 'logs' && !logsLoaded) loadLogs();
-    if (name === 'admin') { if (isAdmin()) loadTeachers(); else renderMemberList(); loadSessions(); loadStats(); loadAttend(); }
+    if (name === 'admin') loadAdminTab();
     if (name === 'talk') { renderTalk(); loadTalk(); }
   }
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
@@ -1738,8 +1751,26 @@ var SJ = (function () {
     var ok = await copyText(txt, $('result'));
     setStatus(ok ? '이 기기는 공유창을 지원하지 않아 복사해 뒀어요. 카톡에 붙여넣어 주세요.' : '복사가 안 됐어요. 글을 길게 눌러 직접 복사해 주세요.', ok ? 'ok' : 'err');
   };
+  /** 회원에게 처음 보내는 카톡 안내 (회원 링크 + 앱 설치 + 알림 + 공지·건의) */
   function linkMessage(name, link) {
-    return name + '님, 소웰 수업일지 페이지예요 🌿\n앞으로 수업일지는 여기에 계속 쌓여요. 즐겨찾기나 홈 화면에 추가해 두세요!\n' + link;
+    var c = center();
+    return [
+      name + '님, 안녕하세요! ' + c + '예요 🌿',
+      name + '님만의 수업일지 페이지를 보내 드려요. 수업이 끝나면 운동 기록과 숙제가 여기에 쌓여요.',
+      '👉 ' + link,
+      '',
+      '📱 앱처럼 쓰기 (처음 한 번만)',
+      '· 아이폰: 사파리로 열기 → 아래 공유 버튼 → [홈 화면에 추가]',
+      '· 안드로이드: 크롬으로 열기 → [앱 설치]',
+      '· 카톡 안에서 열렸다면 화면 위 안내대로 사파리·크롬으로 열어 주세요',
+      '',
+      '🔔 알림 켜기',
+      '홈 화면에 생긴 앱을 열고 [수업 알림 받기] → 허용',
+      '수업 전날·1시간 전 안내, 수업일지, 센터 공지를 알려 드려요. (아이폰은 홈 화면 앱에서만 알림이 와요)',
+      '',
+      '💬 [공지 · 건의] 탭에서 센터 소식을 보고 바라는 점도 남길 수 있어요. 익명으로도 보낼 수 있어요.',
+      '🏆 매달 가장 꾸준히 오신 회원님은 \'이달의 출석왕\'으로 소개해 드려요!'
+    ].join('\n');
   }
 
   // ═════════ 저장 ═════════
@@ -1817,7 +1848,7 @@ var SJ = (function () {
   $('openMemberBtn').onclick = function () { if (savedLink) window.open(savedLink, '_blank'); };
   $('copyLinkBtn').onclick = async function () {
     var ok = await copyText(linkMessage(savedName, savedLink));
-    msg('saveMsg', ok ? '링크 안내 문구를 복사했어요. 회원 카톡에 처음 한 번만 보내 주세요.' : '복사가 안 됐어요. [회원 페이지 열기] 후 주소를 복사해 주세요.', ok ? 'ok' : 'err');
+    msg('saveMsg', ok ? '안내 문구(링크·앱 설치·알림 켜기)를 복사했어요. 회원 카톡에 처음 한 번만 보내 주세요.' : '복사가 안 됐어요. [회원 페이지 열기] 후 주소를 복사해 주세요.', ok ? 'ok' : 'err');
   };
 
   // ═════════ 일지 탭 ═════════
@@ -2080,8 +2111,15 @@ var SJ = (function () {
   async function loadTeachers() {
     var list = $('teacherList');
     if (!list.children.length) list.innerHTML = '<div class="note">불러오는 중…</div>';   // 이미 있으면 그대로 두고 뒤에서 새로
-    try {
-      var j = await callApi({ action: 'teachers' });
+    try { applyTeacherList(await callApi({ action: 'teachers' })); }
+    catch (e) {
+      list.innerHTML = '';
+      list.appendChild(el('div', 'msg err', e.message));
+    }
+  }
+  function applyTeacherList(j) {
+    var list = $('teacherList');
+    {
       S.teachers = (j.teachers || []).filter(function (t) { return !t.pending; });
       renderPending((j.teachers || []).filter(function (t) { return t.pending; }));
       var keepT = $('mTrainer').value;
@@ -2110,9 +2148,6 @@ var SJ = (function () {
         row.appendChild(b);
         list.appendChild(row);
       });
-    } catch (e) {
-      list.innerHTML = '';
-      list.appendChild(el('div', 'msg err', e.message));
     }
   }
 
@@ -2389,12 +2424,12 @@ var SJ = (function () {
     return el('span', 'ses' + (s.left <= 0 ? ' out' : s.left <= 3 ? ' low' : ''), sesText(s));
   }
   async function loadSessions() {
-    try {
-      var j = await callApi({ action: 'sessions' });
-      S.sess = j.sessions || {}; S.valid = j.valid || {}; S.mgmt = j.mgmt || null; saveSnap();
-      renderMemberList();
-      if (currentTab === 'sched') drawCal();
-    } catch (e) {}
+    try { applySessions(await callApi({ action: 'sessions' })); } catch (e) {}
+  }
+  function applySessions(j) {
+    S.sess = j.sessions || {}; S.valid = j.valid || {}; S.mgmt = j.mgmt || null; saveSnap();
+    renderMemberList();
+    if (currentTab === 'sched') drawCal();
   }
   function refreshSessionsSoon() { clearTimeout(sessTimer); sessTimer = setTimeout(loadSessions, 1200); }
   function renderLow() {
@@ -2583,6 +2618,13 @@ var SJ = (function () {
     try {
       var j = await callApi({ action: 'monthStats', month: want });
       if (want !== stMonth) return;
+      applyStats(j);
+    } catch (e) { msg('stMsg', e.message, 'err'); }
+  }
+  function applyStats(j) {
+    $('stMonth').textContent = stMonth.slice(0, 4) + '년 ' + (+stMonth.slice(5)) + '월';
+    $('statTitle').textContent = isAdmin() ? '월별 수업 수 (선생님별)' : '내 월별 수업 수';
+    {
       msg('stMsg', '');
       var t = el('table', 'stat'), hd = el('tr');
       ['선생님', '완료', '노쇼', '합계', '취소', '회원'].forEach(function (x) { hd.appendChild(el('th', '', x)); });
@@ -2602,10 +2644,34 @@ var SJ = (function () {
       $('stBody').innerHTML = '';
       if (!(j.rows || []).length) $('stBody').appendChild(el('p', 'note', '이 달에는 기록된 수업이 없어요.'));
       else $('stBody').appendChild(t);
-    } catch (e) { msg('stMsg', e.message, 'err'); }
+    }
   }
   $('stPrev').onclick = function () { stMonth = shiftMonth(stMonth, -1); loadStats(); };
   $('stNext').onclick = function () { stMonth = shiftMonth(stMonth, 1); loadStats(); };
+  // 관리 탭: 지난번 화면을 바로 보여 주고, 한 번의 요청으로 새로 받아 옴
+  var adminLoading = false;
+  function adminSnapKey() { return 'sj_admin_' + (S.me ? S.me.name : ''); }
+  function applyAdminTab(j) {
+    if (j.teachers) applyTeacherList(j.teachers); else renderMemberList();
+    if (j.sessions && j.sessions.ok !== false) applySessions(j.sessions);
+    if (j.stats && j.stats.ok !== false && j.stats.month === stMonth) applyStats(j.stats);
+    if (j.attend && j.attend.ok !== false && j.attend.month === atMonth) applyAttend(j.attend);
+  }
+  async function loadAdminTab() {
+    if (!S.me) return;
+    try { var snap = JSON.parse(localStorage.getItem(adminSnapKey()) || 'null'); if (snap && !adminLoading) applyAdminTab(snap); } catch (e) {}
+    if (adminLoading) return; adminLoading = true;
+    var u = S.me.name;
+    try {
+      var j = await callApi({ action: 'adminTab', statMonth: stMonth, attMonth: atMonth });
+      if (!S.me || S.me.name !== u) return;
+      applyAdminTab(j);
+      try { localStorage.setItem(adminSnapKey(), JSON.stringify(j)); } catch (e) {}
+    } catch (e) {
+      if (e.data && /알 수 없는 요청/.test(e.message)) { if (isAdmin()) loadTeachers(); else renderMemberList(); loadSessions(); loadStats(); loadAttend(); }   // 서버가 예전 버전일 때
+      else msg('stMsg', e.message, 'err');
+    } finally { adminLoading = false; }
+  }
   // 이달의 출석왕
   var atMonth = todayStr().slice(0, 7);
   async function loadAttend() {
@@ -2616,6 +2682,13 @@ var SJ = (function () {
     try {
       var j = await callApi({ action: 'attendRank', month: want });
       if (want !== atMonth) return;
+      applyAttend(j);
+    } catch (e) { msg('atMsg', e.message, 'err'); }
+  }
+  function applyAttend(j) {
+    $('atMonth').textContent = atMonth.slice(0, 4) + '년 ' + (+atMonth.slice(5)) + '월';
+    Array.prototype.forEach.call(document.querySelectorAll('#attSection .teacherOnly'), function (x) { x.classList.toggle('hidden', isAdmin()); });
+    {
       $('attSection').classList.toggle('hidden', j.on === false);
       msg('atMsg', '');
       var box = $('atBody'); box.innerHTML = '';
@@ -2631,7 +2704,7 @@ var SJ = (function () {
         row.appendChild(el('span', 'ct', x.n + '회'));
         box.appendChild(row);
       });
-    } catch (e) { msg('atMsg', e.message, 'err'); }
+    }
   }
   $('atPrev').onclick = function () { atMonth = shiftMonth(atMonth, -1); loadAttend(); };
   $('atNext').onclick = function () { atMonth = shiftMonth(atMonth, 1); loadAttend(); };
@@ -2944,7 +3017,7 @@ var SJ = (function () {
         g.forEach(function (e) { e._lanes = lanes.length; });
       });
       dayEvs.forEach(function (e) {
-        var s = hmToMin(e.start), b = el('div', 'ev st-' + e.status + (e.kind === '개인' ? ' private' : ''));
+        var s = hmToMin(e.start), b = el('div', 'ev st-' + e.status + (e.kind === '개인' ? ' private' : '') + (e.pending ? ' pending' : ''));
         b.style.top = ((s - sh * 60) / 60 * HOUR_PX) + 'px';
         b.style.height = Math.max(SV.view === 'week' ? 14 : 18, e.min / 60 * HOUR_PX - 2) + 'px';
         if (SV.view === 'week' && e._lanes > 1) {
@@ -3267,6 +3340,8 @@ var SJ = (function () {
     }
     if (formKind === '수업' && !body.code) { msg('fMsg', '회원을 골라 주세요.', 'err'); return; }
     if (formKind === '개인' && !body.title) { msg('fMsg', '일정 이름을 적어 주세요.', 'err'); return; }
+    var simple = !body.repeat && !(formEv && (body.scope === 'future'));
+    if (simple) { saveEventFast(body, formEv); return; }
     var b = $('fSave'); b.disabled = true; b.textContent = '저장 중…';
     try {
       var target = formEv ? SV.cur : body.date;
@@ -3281,6 +3356,40 @@ var SJ = (function () {
     } catch (e) { msg('fMsg', e.message, 'err'); }
     finally { b.disabled = false; b.textContent = '저장'; }
   };
+
+  /** 한 번짜리 일정 넣기·고치기: 창을 바로 닫고 달력에 먼저 그린 뒤 저장 (실패하면 되돌리고 창을 다시 엶) */
+  async function saveEventFast(body, ev0) {
+    var key = wKey(monOf(body.date), $('sTrainer').value), c = SV.cache[key] || (SV.cache[key] = { events: [], at: 0 });
+    var mem = S.members.filter(function (m) { return m.code === body.code; })[0];
+    var trainer = body.trainer || (ev0 ? ev0.trainer : S.me.name);
+    var temp = null, backup = null, oldKey = '';
+    if (ev0) {   // 고치기: 원래 자리에서 빼고 새 자리에 그림
+      oldKey = wKey(monOf(ev0.date), $('sTrainer').value);
+      backup = JSON.parse(JSON.stringify(ev0));
+      if (SV.cache[oldKey]) SV.cache[oldKey].events = SV.cache[oldKey].events.filter(function (x) { return x.id !== ev0.id; });
+    }
+    temp = Object.assign({}, ev0 || { id: 'tmp' + Date.now(), status: '예정', series: 0, days: [], logId: '' }, {
+      kind: body.kind, code: body.kind === '수업' ? body.code : '', member: body.kind === '수업' ? (mem ? mem.name : '') : '',
+      title: body.title, date: body.date, start: body.start, min: body.min, memo: body.memo, trainer: trainer, mine: trainer === S.me.name, pending: true });
+    if (c && (!$('sTrainer').value || $('sTrainer').value === trainer)) c.events = c.events.concat([temp]);
+    try { localStorage.setItem('sj_lastmin', String(body.min)); } catch (x) {}
+    closeSheet('evForm');
+    if (!ev0) SV.cur = body.date;
+    showCached();
+    msg('sMsg', ev0 ? '고치는 중…' : '넣는 중…');
+    body.view = viewFor(SV.cur);
+    try {
+      var j = await callApi(body);
+      SV.flash = ev0 ? '일정을 고쳤어요.' : '일정을 넣었어요.';
+      afterWrite(j, false);
+    } catch (e) {
+      if (c) c.events = c.events.filter(function (x) { return x !== temp; });
+      if (ev0 && SV.cache[oldKey]) SV.cache[oldKey].events = SV.cache[oldKey].events.concat([backup]);
+      showCached();
+      msg('sMsg', '저장하지 못했어요: ' + e.message, 'err');
+      openSheet('evForm'); msg('fMsg', e.message, 'err');
+    }
+  }
 
   // ───── 일정에서 일지 쓰기 ─────
   var logEvent = null;
