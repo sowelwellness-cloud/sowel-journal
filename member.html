@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.17.0">
+<meta name="sowel-version" content="0.18.1">
 <meta name="robots" content="noindex,nofollow">
 <title>나의 수업일지 · SOWEL</title>
 <link rel="manifest" href="manifest-member.webmanifest">
@@ -279,6 +279,25 @@ var SOWEL_UPD = (function () {
   .cmsg{font-size:12px;color:#B3261E;margin-top:4px}
   .cchip{font-size:12px;color:var(--muted);margin-left:6px;font-weight:500}
   .cchip.new{color:#fff;background:var(--terra);border-radius:99px;padding:1px 7px;font-weight:700}
+  .post{background:var(--card);border:1px solid var(--line);border-radius:18px;margin-top:12px;overflow:hidden}
+  .post .ph{display:flex;align-items:center;gap:8px;padding:12px 16px 0;font-size:13px;color:var(--muted)}
+  .post .ph b{color:var(--brown);font-size:14px}
+  .post .ph .cat{font-size:11px;font-weight:700;color:var(--terra);border:1px solid var(--terra);border-radius:99px;padding:1px 8px}
+  .post .ph .nw{font-size:11px;font-weight:700;color:#fff;background:var(--terra);border-radius:99px;padding:1px 7px}
+  .post img{display:block;width:100%;max-height:420px;object-fit:cover;margin-top:10px;background:var(--soft)}
+  .post .pt{padding:10px 16px 0;font-size:15px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+  .post .pt.clip{max-height:6.8em;overflow:hidden;position:relative}
+  .post .pt.clip::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1.7em;background:linear-gradient(rgba(255,253,249,0),var(--card))}
+  .post .pm{padding:2px 16px 0}
+  .post .pa{display:flex;gap:8px;padding:10px 16px 12px}
+  .post .pa button{border:1px solid var(--line);background:var(--card);color:var(--brown);border-radius:99px;padding:7px 14px;font:inherit;font-size:14px;cursor:pointer;min-height:38px}
+  .post .pa button.on{border-color:#E8601A;color:#E8601A;font-weight:700;background:#FDF1E8}
+  .post .pc{border-top:1px solid var(--soft);padding:10px 16px 12px;background:#FCF9F4}
+  .post .pc .ci{font-size:14px;line-height:1.55;padding:5px 0;word-break:break-word;white-space:pre-wrap}
+  .post .pc .ci b{font-size:13px;margin-right:6px}
+  .post .pc .ci b.t{color:var(--terra)}
+  .post .pc .ci small{color:var(--muted);font-size:11px;margin-left:6px}
+  .post .pc .ci .del{background:none;border:0;padding:0;margin-left:6px;font:inherit;font-size:11px;color:var(--muted);text-decoration:underline;cursor:pointer}
   .cbanner{display:flex;align-items:center;gap:10px;width:100%;margin-top:12px;background:var(--card);border:1px solid var(--terra);border-radius:14px;padding:11px 14px;font:inherit;font-size:14px;color:var(--brown);text-align:left;cursor:pointer}
   .cbanner .t{flex:1;min-width:0}
   .cbanner .t b{color:var(--terra);margin-right:4px}
@@ -357,6 +376,7 @@ var SOWEL_UPD = (function () {
 
   <nav class="mtabs hidden" id="mTabs" role="tablist"><div class="in">
     <button class="mtab on" type="button" data-p="log" role="tab">수업일지</button>
+    <button class="mtab" type="button" data-p="feed" role="tab" id="feedTab">센터 소식</button>
     <button class="mtab" type="button" data-p="talk" role="tab" id="talkTab">공지 · 건의</button>
   </div></nav>
 
@@ -380,6 +400,12 @@ var SOWEL_UPD = (function () {
 
   <div class="state" id="state"><span class="spin"></span>수업일지를 불러오는 중이에요…</div>
   <div id="list"></div>
+  </div>
+
+  <div id="paneFeed" class="hidden">
+    <div id="feedList"></div>
+    <div class="state hidden" id="feedState"></div>
+    <button class="lnk ntmore hidden" type="button" id="feedMore">지난 소식 더 보기</button>
   </div>
 
   <div id="paneTalk" class="hidden">
@@ -786,7 +812,7 @@ var SOWEL_UPD = (function () {
     } else {
       t.appendChild(el('b', '', '수업 알림 받기'));
       t.appendChild(el('span', '', SOWEL_PUSH.iosNeedsInstall() ? '아이폰은 홈 화면에 추가한 앱에서 켤 수 있어요 (공유 → 홈 화면에 추가)'
-                                                               : '수업 전날·1시간 전, 새 수업일지가 올라오면 알려 드려요'));
+                                                               : '수업 전날·30분 전, 새 수업일지가 올라오면 알려 드려요'));
       b.textContent = '알림 받기'; b.disabled = SOWEL_PUSH.iosNeedsInstall();
       b.onclick = function () {
         b.disabled = true; pmsg('');
@@ -865,6 +891,92 @@ var SOWEL_UPD = (function () {
       fail('수업일지를 불러오지 못했어요. 잠시 후 다시 열어 주세요.');
       showWhy(e && e.why ? e.why : [String(e && e.message || e)]);
     });
+
+  // ───── 센터 소식 (선생님 글 · 좋아요 · 댓글) ─────
+  var FD = {
+    latest: 0, posts: [], more: false, loaded: false, busy: false, seenShown: 0, key: 'sj_m_fseen_' + code,
+    seen: function () { var v = 0; try { v = Number(localStorage.getItem(FD.key) || 0); } catch (e) {} return v || Date.now() - 7 * 86400e3; }
+  };
+  function fetchFeed(extra) {
+    var body = { action: 'feedMember', c: code };
+    Object.keys(extra || {}).forEach(function (k) { body[k] = extra[k]; });
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(readJson).then(function (j) { if (!j.ok) throw new Error(j.error || '불러오지 못했어요.'); return j; });
+  }
+  function openFeed() {
+    FD.seenShown = FD.seen();
+    try { localStorage.setItem(FD.key, String(Math.max(FD.latest, Date.now() - 7 * 86400e3))); } catch (e) {}
+    if (FD.loaded || FD.busy) { drawFeed(); return; }
+    FD.busy = true;
+    var st = $('feedState'); st.classList.remove('hidden'); st.innerHTML = ''; st.appendChild(el('span', 'spin')); st.appendChild(document.createTextNode('소식을 불러오는 중이에요…'));
+    fetchFeed().then(function (j) { FD.posts = j.posts; FD.more = j.more; FD.loaded = true; drawFeed(); })
+      .catch(function (e) { st.textContent = e.message; }).then(function () { FD.busy = false; });
+  }
+  function drawFeed() {
+    var box = $('feedList'); box.innerHTML = '';
+    $('feedState').classList.toggle('hidden', !!FD.posts.length);
+    if (!FD.posts.length) $('feedState').textContent = '아직 올라온 소식이 없어요.\n선생님들이 운동 팁과 센터 이야기를 올릴 거예요 🌿';
+    FD.posts.forEach(function (p) { box.appendChild(postCard(p)); });
+    $('feedMore').classList.toggle('hidden', !FD.more);
+  }
+  $('feedMore').onclick = function () {
+    var b = $('feedMore'); b.disabled = true;
+    fetchFeed({ offset: FD.posts.length }).then(function (j) { FD.posts = FD.posts.concat(j.posts); FD.more = j.more; drawFeed(); })
+      .catch(function () {}).then(function () { b.disabled = false; });
+  };
+  function postCard(p) {
+    var c = el('article', 'post');
+    var h = el('div', 'ph');
+    h.appendChild(el('b', '', p.by + ' 선생님'));
+    if (p.cat) h.appendChild(el('span', 'cat', p.cat));
+    h.appendChild(el('span', '', kday(p.at)));
+    if (p.at > FD.seenShown) h.appendChild(el('span', 'nw', 'NEW'));
+    c.appendChild(h);
+    if (p.photo) { var im = el('img'); im.src = p.photo; im.alt = ''; im.loading = 'lazy'; im.onerror = function () { im.remove(); }; c.appendChild(im); }
+    var t = el('div', 'pt', p.text); c.appendChild(t);
+    if (p.text.length > 160 || p.text.split('\n').length > 4) {
+      t.classList.add('clip');
+      var mr = el('button', 'lnk pm', '더 보기'); mr.type = 'button';
+      mr.onclick = function () { t.classList.toggle('clip'); mr.textContent = t.classList.contains('clip') ? '더 보기' : '접기'; };
+      c.appendChild(mr);
+    }
+    var a = el('div', 'pa');
+    var lk = el('button', p.liked ? 'on' : '', (p.liked ? '❤️ ' : '🤍 ') + (p.likes || '좋아요')); lk.type = 'button';
+    var cb = el('button', '', '💬 ' + (p.cmts.length || '댓글')); cb.type = 'button';
+    a.appendChild(lk); a.appendChild(cb); c.appendChild(a);
+    var pc = el('div', 'pc' + (p.cmts.length ? '' : ' hidden'));
+    p.cmts.forEach(function (x) {
+      var ci = el('div', 'ci');
+      ci.appendChild(el('b', x.t ? 't' : '', x.name));
+      ci.appendChild(document.createTextNode(x.text));
+      var sm = el('small', '', kday(x.at)); ci.appendChild(sm);
+      if (x.mine) { var d = el('button', 'del', '지우기'); d.type = 'button'; d.onclick = function () { act({ del: x.id }, d); }; ci.appendChild(d); }
+      pc.appendChild(ci);
+    });
+    var row = el('div', 'cin'), ta = el('textarea'); ta.rows = 1; ta.maxLength = 300; ta.placeholder = '댓글 남기기';
+    ta.oninput = function () { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; };
+    var sb = el('button', '', '보내기'); sb.type = 'button';
+    sb.onclick = function () { var v = ta.value.trim(); if (!v) { ta.focus(); return; } act({ text: v }, sb); };
+    row.appendChild(ta); row.appendChild(sb); pc.appendChild(row);
+    var er = el('div', 'cmsg'); pc.appendChild(er);
+    pc.appendChild(el('div', 'cnote', '댓글은 다른 회원에게도 보여요. 이름 가운데 글자는 가려져요.'));
+    c.appendChild(pc);
+    cb.onclick = function () { pc.classList.toggle('hidden'); if (!pc.classList.contains('hidden')) ta.focus(); };
+    lk.onclick = function () {
+      p.liked = !p.liked; p.likes += p.liked ? 1 : -1;                          // 누르자마자 바꾸고
+      lk.className = p.liked ? 'on' : ''; lk.textContent = (p.liked ? '❤️ ' : '🤍 ') + (p.likes || '좋아요');
+      fetchFeed({ post: p.id, like: p.liked, offset: Math.floor(Math.max(0, FD.posts.indexOf(p)) / 15) * 15 }).catch(function () { p.liked = !p.liked; p.likes += p.liked ? 1 : -1; drawFeed(); });   // 실패하면 되돌림
+    };
+    function act(extra, btn) {
+      btn.disabled = true; er.textContent = '';
+      extra.post = p.id; extra.offset = Math.floor(Math.max(0, FD.posts.indexOf(p)) / 15) * 15;
+      fetchFeed(extra).then(function (j) {
+        var np = j.posts.filter(function (x) { return x.id === p.id; })[0];
+        if (np) { var i = FD.posts.indexOf(p); FD.posts[i] = np; var nc = postCard(np); nc.querySelector('.pc').classList.remove('hidden'); c.replaceWith(nc); }
+      }).catch(function (e) { er.textContent = e.message; btn.disabled = false; });
+    }
+    return c;
+  }
 
   // ───── 수업일지 댓글 · 반응 (담당 선생님·대표만 봐요) ─────
   var CM = {
@@ -1001,6 +1113,8 @@ var SOWEL_UPD = (function () {
   }
   /** 탭 숫자 + [수업일지] 위 새 소식 띠 */
   function renderBadges() {
+    var ft = $('feedTab'); ft.textContent = '센터 소식';
+    if (pane !== 'feed' && FD.latest > FD.seen()) ft.appendChild(el('span', 'bdg', 'N'));
     var u = unread(), tab = $('talkTab');
     tab.textContent = '공지 · 건의';
     if (u.count && pane !== 'talk') tab.appendChild(el('span', 'bdg', String(u.count)));
@@ -1016,8 +1130,10 @@ var SOWEL_UPD = (function () {
     pane = p;
     $('paneLog').classList.toggle('hidden', p !== 'log');
     $('paneTalk').classList.toggle('hidden', p !== 'talk');
+    $('paneFeed').classList.toggle('hidden', p !== 'feed');
+    if (p === 'feed') openFeed();
     Array.prototype.forEach.call(document.querySelectorAll('.mtab'), function (b) { b.classList.toggle('on', b.dataset.p === p); });
-    try { history.replaceState(null, '', location.pathname + location.search + (p === 'talk' ? '#talk' : '')); } catch (e) {}
+    try { history.replaceState(null, '', location.pathname + location.search + (p === 'log' ? '' : '#' + p)); } catch (e) {}
     if (p === 'talk') {
       renderNotices(T.notices);   // NEW 표시는 보기 전 기준으로 그린 뒤 읽음 처리
       var top = Math.max.apply(null, [Date.now() - 7 * 86400e3].concat(T.notices.map(function (n) { return n.at; })));
@@ -1026,7 +1142,7 @@ var SOWEL_UPD = (function () {
       lsSet(RSEEN, rtop);
     }
     // 아래로 내려가 있었으면 탭 바로 아래(새 화면 처음)로
-    var pe = $(p === 'talk' ? 'paneTalk' : 'paneLog'), want = pe.getBoundingClientRect().top + window.scrollY - $('mTabs').offsetHeight;
+    var pe = $(p === 'talk' ? 'paneTalk' : p === 'feed' ? 'paneFeed' : 'paneLog'), want = pe.getBoundingClientRect().top + window.scrollY - $('mTabs').offsetHeight;
     if (window.scrollY > want) window.scrollTo(0, Math.max(0, want));
     renderBadges();
   }
@@ -1119,7 +1235,8 @@ var SOWEL_UPD = (function () {
       replySeenShown = replySeen();
       renderSugg(T.mine);
       $('mTabs').classList.remove('hidden');
-      showPane(location.hash === '#talk' ? 'talk' : 'log');
+      FD.latest = j.feedLatest || 0;
+      showPane(location.hash === '#talk' ? 'talk' : location.hash === '#feed' ? 'feed' : 'log');
 
       if (!logs.length) return fail('아직 기록된 수업일지가 없어요.\n첫 수업 후에 이곳에 쌓여요 🌿');
       $('state').classList.add('hidden');

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F5EFE6">
-<meta name="sowel-version" content="0.23.0">
+<meta name="sowel-version" content="0.25.0">
 <title>소웰 수업일지</title>
 <link rel="manifest" href="manifest-teacher.webmanifest">
 <link rel="apple-touch-icon" href="icon-teacher-180.png">
@@ -269,6 +269,23 @@ window.SOWEL_PUSH = (function () {
   .cthread .cin textarea{flex:1;min-height:40px;max-height:120px;resize:none;font-size:14px;padding:8px 10px}
   .cthread .cin .btn{flex:0 0 auto;height:40px}
   .chip.newc{background:var(--terra);color:#fff;font-weight:700}
+  .fpost{border-top:1px solid #EFE6D8;padding:14px 0 4px}
+  .fpost:first-child{border-top:0}
+  .fpost .ph{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+  .fpost .ph b{color:var(--brown)}
+  .fpost .ph .chip{margin-left:0}
+  .fpost img{display:block;width:100%;max-height:320px;object-fit:cover;border-radius:12px;margin-top:8px;background:#EFE6D8}
+  .fpost .pt{font-size:14px;line-height:1.65;margin-top:8px;white-space:pre-wrap;word-break:break-word}
+  .fpost .pa{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .fpost .pa .btn.on{color:var(--terra);border-color:var(--terra);font-weight:700}
+  .fpost .pc{margin-top:8px;padding:8px 10px;border-radius:10px;background:#FBF7F1}
+  .fpost .pc .ci{font-size:13px;line-height:1.5;padding:4px 0;white-space:pre-wrap;word-break:break-word}
+  .fpost .pc .ci b{margin-right:6px}
+  .fpost .pc .ci b.t{color:var(--terra)}
+  .fpost .pc .ci small{color:var(--muted);font-size:11px;margin-left:6px}
+  .fpost .pc .ci .link{font-size:11px;margin-left:6px}
+  .fpost .pc .cin{display:flex;gap:6px;margin-top:6px;align-items:flex-end}
+  .fpost .pc .cin textarea{flex:1;min-height:38px;resize:none;font-size:14px;padding:7px 10px}
   .tab .dot{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:var(--terra);color:#fff;font-size:11px;line-height:18px;margin-left:4px;padding:0 5px;vertical-align:1px}
 
   /* ───── 일정 ───── */
@@ -598,6 +615,28 @@ window.SOWEL_PUSH = (function () {
       </section>
 
       <section class="card">
+        <h2 style="display:flex;align-items:center">📰 센터 소식<button class="btn terra small" id="fdNewBtn" style="margin-left:auto">＋ 글쓰기</button></h2>
+        <p class="sub">운동 팁·건강 정보·센터 이야기를 회원들에게 전해요. 회원은 좋아요와 댓글을 남길 수 있어요.</p>
+        <div class="hidden" id="fdForm">
+          <label>분류</label>
+          <div class="seg" id="fdCat"></div>
+          <label for="fdText">내용</label>
+          <textarea id="fdText" maxlength="2000" style="min-height:120px" placeholder="예: 무릎이 불편할 땐 스쿼트를 의자 높이까지만 앉아도 충분해요."></textarea>
+          <label>사진 (1장, 안 넣어도 돼요)</label>
+          <div class="row" style="margin-top:0"><button class="btn ghost" id="fdPhotoBtn" type="button">📷 사진 고르기</button><button class="btn ghost hidden" id="fdPhotoDel" type="button">사진 빼기</button></div>
+          <input type="file" id="fdPhoto" accept="image/*" class="hidden">
+          <img id="fdPreview" class="hidden" alt="" style="width:100%;max-height:260px;object-fit:cover;border-radius:12px;margin-top:8px">
+          <p class="note">회원 얼굴이 나온 사진은 본인 동의를 받은 뒤에 올려 주세요.</p>
+          <label class="chk"><input type="checkbox" id="fdPush"> 🔔 알림도 보내기 <span class="note" style="margin:0">(모든 회원·선생님)</span></label>
+          <div class="row"><button class="btn terra" id="fdSave">올리기</button><button class="btn ghost" id="fdCancel">취소</button></div>
+          <div class="msg" id="fdFormMsg"></div>
+        </div>
+        <div id="fdList"></div>
+        <div class="row hidden" id="fdMoreRow"><button class="btn ghost" id="fdMore">지난 소식 더 보기</button></div>
+        <div class="msg" id="fdMsg"></div>
+      </section>
+
+      <section class="card">
         <h2>💬 건의하기</h2>
         <p class="sub">센터에 바라는 점, 불편한 점을 편하게 적어 주세요.</p>
         <textarea id="sgBody" maxlength="1500" style="min-height:90px;margin-top:10px" placeholder="예: 폼롤러가 하나 더 있으면 좋겠어요"></textarea>
@@ -719,6 +758,17 @@ window.SOWEL_PUSH = (function () {
           <p class="note">바꾸면 다른 폰에서 로그인한 것은 자동으로 풀려요.</p>
         </details>
 
+        <details id="careBox" style="margin-top:10px">
+          <summary style="font-size:14px">🌿 케어 알림 문구 <span class="chip soft" id="careChip">센터 공통</span></summary>
+          <p class="note">수업 다음 날 오전, 내 담당 회원에게 가는 안부 알림이에요. 내 말투로 바꿀 수 있어요. 비워 두면 센터 공통 문구가 나가요.</p>
+          <textarea id="careIn" maxlength="200" style="min-height:84px"></textarea>
+          <p class="note" style="margin-bottom:2px">회원에게 이렇게 보여요</p>
+          <div class="cthread" style="margin:0"><b id="carePvT" style="display:block;font-size:14px"></b><span id="carePvB" style="font-size:14px"></span></div>
+          <p class="note">앞에 "🌿 회원 이름님, "이 자동으로 붙어요. 첫 문장은 알림 제목, 나머지는 본문이 돼요.</p>
+          <div class="row"><button class="btn terra" id="careSave">저장</button><button class="btn ghost" id="careReset">센터 공통 문구로</button></div>
+          <div class="msg" id="careMsg"></div>
+        </details>
+
         <details id="icsBox" style="margin-top:10px">
           <summary style="font-size:14px">📅 폰 캘린더에서 소웰 일정 보기</summary>
           <p class="note">내 소웰 일정을 아이폰·구글 캘린더에 띄워요. 보기 전용이라 일정 추가·수정은 소웰 [일정] 탭에서 해요.</p>
@@ -738,7 +788,7 @@ window.SOWEL_PUSH = (function () {
 
         <details id="pushBox" class="hidden" style="margin-top:10px">
           <summary style="font-size:14px">🔔 알림 받기</summary>
-          <p class="note">내일 수업 안내(매일 저녁)와 새 공지<span class="adminOnly">, 새 건의, 새 선생님 가입 요청</span>을 이 폰으로 알려 드려요.</p>
+          <p class="note">내일 수업 안내(매일 저녁), 수업 30분 전 알림, 새 공지<span class="adminOnly">, 새 건의, 새 선생님 가입 요청</span>을 이 폰으로 알려 드려요.</p>
           <p class="note" id="pushState"></p>
           <div class="row"><button class="btn terra" id="pushOn">이 폰에서 알림 받기</button><button class="btn ghost hidden" id="pushTest">테스트 알림</button><button class="btn ghost hidden" id="pushOff">알림 끄기</button></div>
           <div class="msg" id="pushMsg"></div>
@@ -1076,7 +1126,7 @@ var SJ = (function () {
     if (!S.me || !store.get('token')) return;
     try {
       localStorage.setItem('sj_snap', JSON.stringify({ me: S.me, center: S.center, closing: S.closing, model: S.model,
-        pending: S.pending, members: S.members, sess: S.sess || {}, valid: S.valid || {}, push: S.push || null, notices: S.notices || [], at: Date.now() }));
+        pending: S.pending, members: S.members, sess: S.sess || {}, valid: S.valid || {}, push: S.push || null, notices: S.notices || [], careText: S.careText || '', careDefault: S.careDefault || '', at: Date.now() }));
     } catch (e) {}
   }
   function readSnap() {
@@ -1093,7 +1143,8 @@ var SJ = (function () {
     var prev = S.me ? S.me.name + '|' + S.me.role : '';
     var inApp = !$('appView').classList.contains('hidden');
     S.me = j.me; S.center = j.center; S.closing = j.closing; S.apiKey = j.apiKey; S.model = j.model; S.pending = j.pending || 0;
-    S.push = j.push || null; S.notices = j.notices || []; S.newSugg = j.newSugg || 0; S.newCmt = j.newCmt || 0;
+    S.careText = j.careText || ''; S.careDefault = j.careDefault || ''; S.careOn = j.careOn !== false;
+    S.push = j.push || null; S.notices = j.notices || []; S.newSugg = j.newSugg || 0; S.newCmt = j.newCmt || 0; S.feedLatest = j.feedLatest || 0;
     if (j.needAccount) { clearSnap(); setMembers(j.members || []); showAccountSetup(); return; }
     setMembers(j.members || []);
     saveSnap();
@@ -1108,7 +1159,7 @@ var SJ = (function () {
     $('pendingSection').classList.toggle('hidden', !isAdmin() || !S.pending);
     if (currentTab === 'talk') renderTalk();
     if (!apiKey()) setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err');
-    pushUI(); pushSilentRefresh();
+    pushUI(); careUI(); pushSilentRefresh();
   }
   async function doLogin(body, btn) {
     btn.disabled = true;
@@ -1188,7 +1239,7 @@ var SJ = (function () {
     loadSchedSnap();
     showTab(currentTab);
     if (currentTab !== 'admin') setTimeout(loadSessions, 800);   // 달력의 '잔여' 표시용 (뒤에서)
-    pushUI(); if (!fromSnap) setTimeout(pushSilentRefresh, 2500);
+    pushUI(); careUI(); if (!fromSnap) setTimeout(pushSilentRefresh, 2500);
     if (!fromSnap && !apiKey()) { if (isAdmin()) $('settingsBox').open = true; setStatus('시트 [설정] 탭에 Gemini API 키가 없어요.' + (isAdmin() ? '' : ' 대표에게 알려 주세요.'), 'err'); }
   }
 
@@ -1206,7 +1257,7 @@ var SJ = (function () {
   function setTalkDot() {
     var b = $('talkTabBtn'); if (!b) return;
     if (S.me && !store.get(seenKey())) store.set(seenKey(), String(Date.now() - 7 * 86400e3));   // 처음 쓰는 폰: 최근 7일 공지만 '새 글'
-    var n = unreadNotices() + (isAdmin() ? (S.newSugg || 0) : 0);
+    var n = unreadNotices() + (isAdmin() ? (S.newSugg || 0) : 0) + (S.feedLatest && S.feedLatest > Number(store.get(seenKey()) || 0) && currentTab !== 'talk' ? 1 : 0);
     b.textContent = '공지';
     if (n) b.appendChild(el('span', 'dot', String(n)));
   }
@@ -1240,7 +1291,7 @@ var SJ = (function () {
     if (!list.length) box.appendChild(el('p', 'note', '아직 공지가 없어요.'));
     list.forEach(function (n) { box.appendChild(noticeCard(n, seen)); });
     // 다 봤으면 읽음 처리
-    var top = Math.max.apply(null, [seen].concat((S.notices || []).map(function (n) { return n.at; })));
+    var top = Math.max.apply(null, [seen, S.feedLatest || 0].concat((S.notices || []).map(function (n) { return n.at; })));
     if (currentTab === 'talk' && top > seen) store.set(seenKey(), String(top));
     renderMine(); renderInbox(); setTalkDot();
   }
@@ -1385,6 +1436,168 @@ var SJ = (function () {
     } catch (e) { m.className = 'msg err'; m.textContent = e.message; btn.disabled = false; }
   }
 
+  // ═════════ 센터 소식 ═════════
+  var FD = { posts: [], more: false, cats: [], cat: '', photo: '', editId: '', keepPhoto: false };
+  async function loadFeed(more) {
+    try {
+      var j = await callApi({ action: 'feed', offset: more ? FD.posts.length : 0 });
+      FD.posts = more ? FD.posts.concat(j.posts) : j.posts; FD.more = j.more; FD.cats = j.cats || [];
+      if (j.latest) S.feedLatest = j.latest;
+      drawFeed(); msg('fdMsg', '');
+    } catch (e) { msg('fdMsg', e.message, 'err'); }
+  }
+  function applyFeed(j, keepCount) {
+    var n = keepCount ? FD.posts.length : 0;
+    FD.posts = j.posts; FD.more = j.more; FD.cats = j.cats || FD.cats;
+    if (n > FD.posts.length) loadFeed(true);
+    drawFeed();
+  }
+  function drawCats() {
+    var box = $('fdCat'); box.innerHTML = '';
+    if (FD.cats.indexOf(FD.cat) < 0) FD.cat = FD.cats[0] || '';
+    FD.cats.forEach(function (c) {
+      var b = el('button', c === FD.cat ? 'on' : '', c); b.type = 'button';
+      b.onclick = function () { FD.cat = c; drawCats(); };
+      box.appendChild(b);
+    });
+  }
+  function drawFeed() {
+    var box = $('fdList'); box.innerHTML = '';
+    if (!FD.posts.length) box.appendChild(el('p', 'note', '아직 소식이 없어요. 첫 글을 올려 보세요.'));
+    FD.posts.forEach(function (p) { box.appendChild(feedCard(p)); });
+    $('fdMoreRow').classList.toggle('hidden', !FD.more);
+  }
+  function feedCard(p) {
+    var c = el('div', 'fpost');
+    var h = el('div', 'ph');
+    h.appendChild(el('b', '', p.by + ' 선생님'));
+    if (p.cat) h.appendChild(el('span', 'chip soft', p.cat));
+    h.appendChild(el('span', '', kday(p.at) + (p.edited ? ' · 수정됨' : '')));
+    c.appendChild(h);
+    if (p.photo) { var im = el('img'); im.src = p.photo; im.alt = ''; im.loading = 'lazy'; im.onerror = function () { im.remove(); }; c.appendChild(im); }
+    c.appendChild(el('div', 'pt', p.text));
+    var a = el('div', 'pa');
+    var lk = el('button', 'btn ghost small' + (p.liked ? ' on' : ''), (p.liked ? '❤️ ' : '🤍 ') + p.likes);
+    lk.onclick = function () { act({ like: !p.liked }, lk); };
+    var cb = el('button', 'btn ghost small', '💬 ' + p.cmts.length);
+    var cp = el('button', 'btn ghost small', '글 복사');
+    cp.onclick = async function () { var ok = await copyText(p.text); cp.textContent = ok ? '복사됨 ✓' : '복사 실패'; setTimeout(function () { cp.textContent = '글 복사'; }, 1500); };
+    a.appendChild(lk); a.appendChild(cb); a.appendChild(cp);
+    if (p.canEdit) {
+      var ed = el('button', 'btn ghost small', '수정');
+      ed.onclick = function () { openFeedForm(p); };
+      var rm = el('button', 'btn ghost small danger', '내리기');
+      rm.onclick = function () {
+        if (!rm.dataset.sure) { rm.dataset.sure = '1'; rm.textContent = '한 번 더 누르면 내려요'; setTimeout(function () { delete rm.dataset.sure; rm.textContent = '내리기'; }, 4000); return; }
+        act({ remove: true }, rm);
+      };
+      a.appendChild(ed); a.appendChild(rm);
+    }
+    c.appendChild(a);
+    var pc = el('div', 'pc' + (p.cmts.length ? '' : ' hidden'));
+    p.cmts.forEach(function (x) {
+      var ci = el('div', 'ci');
+      ci.appendChild(el('b', x.t ? 't' : '', x.name));
+      ci.appendChild(document.createTextNode(x.text));
+      ci.appendChild(el('small', '', kday(x.at)));
+      if (x.canDel) { var d = el('button', 'link', '지우기'); d.onclick = function () { act({ del: x.id }, d); }; ci.appendChild(d); }
+      pc.appendChild(ci);
+    });
+    var row = el('div', 'cin'), ta = el('textarea'); ta.rows = 1; ta.maxLength = 300; ta.placeholder = '댓글 (모든 회원에게 보여요)';
+    var sb = el('button', 'btn terra small', '보내기');
+    sb.onclick = function () { var v = ta.value.trim(); if (!v) { ta.focus(); return; } act({ text: v }, sb); };
+    row.appendChild(ta); row.appendChild(sb); pc.appendChild(row);
+    c.appendChild(pc);
+    cb.onclick = function () { pc.classList.toggle('hidden'); };
+    async function act(extra, btn) {
+      btn.disabled = true;
+      try {
+        extra.action = 'feedAct'; extra.post = p.id; extra.count = FD.posts.length;
+        var j = await callApi(extra);
+        FD.posts = j.posts; FD.more = j.more; drawFeed();
+        if (extra.text) { var nc = $('fdList').querySelectorAll('.fpost')[FD.posts.map(function (x) { return x.id; }).indexOf(p.id)]; if (nc) nc.querySelector('.pc').classList.remove('hidden'); }
+      } catch (e) { btn.disabled = false; msg('fdMsg', e.message, 'err'); }
+    }
+    return c;
+  }
+  function openFeedForm(p) {
+    FD.editId = p ? p.id : ''; FD.photo = ''; FD.keepPhoto = !!(p && p.photo);
+    FD.cat = p ? p.cat : (FD.cats[0] || '');
+    drawCats();
+    $('fdText').value = p ? p.text : '';
+    $('fdPreview').classList.toggle('hidden', !(p && p.photo)); if (p && p.photo) $('fdPreview').src = p.photo;
+    $('fdPhotoDel').classList.toggle('hidden', !(p && p.photo));
+    $('fdPush').checked = false; $('fdPush').closest('label').classList.toggle('hidden', !!p);
+    $('fdSave').textContent = p ? '고치기' : '올리기';
+    $('fdForm').classList.remove('hidden'); msg('fdFormMsg', '');
+    $('fdForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('fdText').focus();
+  }
+  $('fdNewBtn').onclick = function () { if ($('fdForm').classList.contains('hidden') || FD.editId) openFeedForm(null); else $('fdForm').classList.add('hidden'); };
+  $('fdCancel').onclick = function () { $('fdForm').classList.add('hidden'); };
+  $('fdMore').onclick = function () { loadFeed(true); };
+  $('fdPhotoBtn').onclick = function () { $('fdPhoto').click(); };
+  $('fdPhotoDel').onclick = function () { FD.photo = ''; FD.keepPhoto = false; $('fdPreview').classList.add('hidden'); $('fdPhotoDel').classList.add('hidden'); $('fdPhoto').value = ''; };
+  /** 사진은 폰에서 긴 쪽 1280px·JPEG로 줄여서 보냄 (보통 200~400KB) */
+  $('fdPhoto').onchange = function () {
+    var f = $('fdPhoto').files[0]; if (!f) return;
+    msg('fdFormMsg', '사진 준비 중…');
+    var url = URL.createObjectURL(f), img = new Image();
+    img.onload = function () {
+      var max = 1280, w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, max / Math.max(w, h));
+      var cv = document.createElement('canvas'); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      FD.photo = cv.toDataURL('image/jpeg', 0.82); FD.keepPhoto = false;
+      URL.revokeObjectURL(url);
+      $('fdPreview').src = FD.photo; $('fdPreview').classList.remove('hidden'); $('fdPhotoDel').classList.remove('hidden');
+      msg('fdFormMsg', '');
+    };
+    img.onerror = function () { msg('fdFormMsg', '이 사진은 열 수 없어요. 다른 사진을 골라 주세요.', 'err'); };
+    img.src = url;
+  };
+  $('fdSave').onclick = async function () {
+    var text = $('fdText').value.trim();
+    if (text.length < 2) { msg('fdFormMsg', '내용을 적어 주세요.', 'err'); $('fdText').focus(); return; }
+    var btn = $('fdSave'); btn.disabled = true; msg('fdFormMsg', FD.photo ? '사진과 함께 올리는 중…' : '올리는 중…');
+    try {
+      var j = await callApi({ action: 'savePost', id: FD.editId, cat: FD.cat, text: text, photo: FD.photo, keepPhoto: FD.keepPhoto, push: $('fdPush').checked });
+      FD.posts = j.posts; FD.more = j.more; drawFeed();
+      $('fdForm').classList.add('hidden'); $('fdText').value = ''; FD.photo = ''; $('fdPhoto').value = '';
+      msg('fdMsg', (FD.editId ? '글을 고쳤어요 ✅' : '소식을 올렸어요 ✅') + (j.sent ? ' 알림 ' + j.sent + '대에 보냈어요.' : ''), 'ok');
+      FD.editId = '';
+    } catch (e) { msg('fdFormMsg', e.message, 'err'); }
+    finally { btn.disabled = false; }
+  };
+
+  // ═════════ 케어 알림 문구 (선생님마다) ═════════
+  function carePreview() {
+    var text = $('careIn').value.replace(/\s+/g, ' ').trim() || S.careDefault || '';
+    var cut = text.search(/[?!.。]\s/), head = cut >= 0 ? text.slice(0, cut + 1) : '', rest = cut >= 0 ? text.slice(cut + 1).trim() : text;
+    $('carePvT').textContent = '🌿 박서준님' + (head ? ', ' + head : '');
+    $('carePvB').textContent = rest;
+  }
+  function careUI() {
+    if (!$('careBox')) return;
+    $('careBox').classList.toggle('hidden', S.careOn === false);
+    $('careIn').value = S.careText || '';
+    $('careIn').placeholder = S.careDefault || '';
+    $('careChip').textContent = S.careText ? '내 문구' : '센터 공통';
+    $('careChip').className = 'chip ' + (S.careText ? 'terra' : 'soft');
+    carePreview();
+  }
+  $('careIn').addEventListener('input', carePreview);
+  async function saveCare(text, btn) {
+    btn.disabled = true; msg('careMsg', '저장 중…');
+    try {
+      var j = await callApi({ action: 'setCareText', text: text });
+      S.careText = j.careText || ''; S.careDefault = j.careDefault || S.careDefault; saveSnap(); careUI();
+      msg('careMsg', S.careText ? '저장했어요 ✅ 내 담당 회원에게는 이 문구로 나가요.' : '센터 공통 문구로 돌렸어요.', 'ok');
+    } catch (e) { msg('careMsg', e.message, 'err'); }
+    finally { btn.disabled = false; }
+  }
+  $('careSave').onclick = function () { saveCare($('careIn').value, $('careSave')); };
+  $('careReset').onclick = function () { saveCare('', $('careReset')); };
+
   function setLogsLabel() {
     var b = $('logsTabBtn'); if (!b) return;
     b.textContent = isAdmin() ? '일지' : '내 일지';
@@ -1406,7 +1619,7 @@ var SJ = (function () {
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) { b.classList.toggle('on', b.dataset.tab === name); });
     if (name === 'logs' && !logsLoaded) loadLogs();
     if (name === 'admin') loadAdminTab();
-    if (name === 'talk') { renderTalk(); loadTalk(); }
+    if (name === 'talk') { renderTalk(); loadTalk(); loadFeed(); }
   }
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
     b.onclick = function () { showTab(b.dataset.tab); };
@@ -1787,7 +2000,7 @@ var SJ = (function () {
       '',
       '🔔 알림 켜기',
       '홈 화면에 생긴 앱을 열고 [수업 알림 받기] → 허용',
-      '수업 전날·1시간 전 안내, 수업일지, 센터 공지를 알려 드려요. (아이폰은 홈 화면 앱에서만 알림이 와요)',
+      '수업 전날·30분 전 안내, 수업 다음 날 컨디션 안부, 수업일지, 센터 공지를 알려 드려요. (아이폰은 홈 화면 앱에서만 알림이 와요)',
       '',
       '💬 [공지 · 건의] 탭에서 센터 소식을 보고 바라는 점도 남길 수 있어요. 익명으로도 보낼 수 있어요.',
       '🏆 매달 가장 꾸준히 오신 회원님은 \'이달의 출석왕\'으로 소개해 드려요!'
@@ -3559,7 +3772,7 @@ var SJ = (function () {
   var snap0 = store.get('token') ? readSnap() : null;
   if (snap0) {
     // 지난 화면 바로 열기 → 로그인 확인·최신 정보는 뒤에서 (일정도 동시에 받음)
-    S.me = snap0.me; S.center = snap0.center; S.closing = snap0.closing; S.model = snap0.model; S.pending = snap0.pending || 0; S.sess = snap0.sess || {}; S.valid = snap0.valid || {}; S.push = snap0.push || null; S.notices = snap0.notices || [];
+    S.me = snap0.me; S.center = snap0.center; S.closing = snap0.closing; S.model = snap0.model; S.pending = snap0.pending || 0; S.sess = snap0.sess || {}; S.valid = snap0.valid || {}; S.push = snap0.push || null; S.notices = snap0.notices || []; S.careText = snap0.careText || ''; S.careDefault = snap0.careDefault || '';
     setMembers(snap0.members || []);
     enterApp(true);
     resume(true);
