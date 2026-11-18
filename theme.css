@@ -1,0 +1,53 @@
+/* ─────────────────────────────────────────────────────────────
+   SOWEL 수업일지 · 테마 (디자인 토큰)
+   DESIGN.md의 "토큰 표"와 1:1로 맞춘 파일입니다.
+   다른 센터용으로 바꿀 때는 이 파일의 값만 바꾸면 선생님·회원 페이지가 함께 바뀌어요.
+   (이 파일이 없어도 각 페이지 안에 같은 기본값이 있어서 화면이 깨지지 않아요)
+   ───────────────────────────────────────────────────────────── */
+:root{
+  /* 브랜드 */
+  --c-ink:#2C2620;            /* 글자·진한 면 (딥브라운) */
+  --c-bg:#F5EFE6;             /* 바탕 (크림) */
+  --c-accent:#E8601A;         /* 포인트 — 큰 면에만: 녹음 버튼, 다음 수업 D-day, 그래프 선 */
+  --c-accent-strong:#C24E10;  /* 포인트 — 글자가 올라가는 버튼·배지·링크 (흰 글자 대비 4.5:1 이상) */
+  --c-accent-tint:#FDF1E8;    /* 포인트 옅은 바탕 */
+  --c-accent-tint-2:#FBE3D3;  /* 내 말풍선 */
+
+  /* 면 */
+  --c-surface:#FFFDF9;        /* 카드 */
+  --c-surface-2:#FBF7F1;      /* 카드 안 상자 */
+  --c-sunken:#EFE6D8;         /* 탭 바탕·칩·구분선 */
+  --c-field:#FFFFFF;          /* 입력칸 */
+  --c-line:#E6DCCD;           /* 테두리 */
+
+  /* 글자 */
+  --c-muted:#6B6157;          /* 보조 글자 (크림 위 5.3:1) */
+  --c-faint:#9A8E82;          /* 버전 표시처럼 읽지 않아도 되는 글자 */
+  --c-on-accent:#FFFFFF;
+
+  /* 상태 */
+  --c-ok:#3F7D4E;  --c-ok-tint:#E8F1E4;  --c-ok-ink:#3F6B35;
+  --c-err:#B3261E;
+  --c-warn-tint:#FFF4E5;  --c-warn-line:#F3C98B;
+  --c-low-tint:#FFF0E0;   --c-low-ink:#B5520F;
+
+  /* 진한 머리(회원 페이지 위쪽) 위 글자 */
+  --c-hero-sub:#CBBFB0;  --c-hero-accent:#E9B48F;  --c-hero-alert:#FF7A6E;
+
+  /* 개인 일정 빗금 */
+  --c-stripe-a:#E9E2D8;  --c-stripe-b:#F3EEE7;
+
+  /* 선생님별 일정 색 (첫 번째는 포인트 색) */
+  --c-staff-1:#E8601A; --c-staff-2:#3F7D9E; --c-staff-3:#5E8C4A; --c-staff-4:#8E5BC9;
+  --c-staff-5:#C2457A; --c-staff-6:#B08800; --c-staff-7:#2E8B8B; --c-staff-8:#7A6A58;
+
+  /* 모양 */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:20px; --r-pill:999px;
+  --shadow-1:0 1px 3px rgba(44,38,32,.12);
+  --shadow-2:0 6px 20px rgba(44,38,32,.08);
+  --tap:44px;                 /* 손가락으로 누르는 최소 높이 */
+
+  /* 글꼴 */
+  --font-body:'Noto Sans KR',system-ui,-apple-system,sans-serif;
+  --font-brand:'Cormorant Garamond',serif;   /* 영문 로고·영문 머리말에만 */
+}
